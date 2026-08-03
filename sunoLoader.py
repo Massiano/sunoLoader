@@ -1,20 +1,22 @@
 import os
+import mimetypes
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import urllib.request
 import urllib.error
 
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+
 class FetchHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
 
-        if parsed.path != "/fetch":
-            self.send_response(404)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(b"Not found. Use /fetch?url=<url>")
-            return
+        if parsed.path == "/fetch":
+            self.handle_fetch(parsed)
+        else:
+            self.handle_static(parsed)
 
+    def handle_fetch(self, parsed):
         query = parse_qs(parsed.query)
         target_url = query.get("url", [None])[0]
 
@@ -57,6 +59,37 @@ class FetchHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(f"Server Error: {str(e)}".encode())
 
+    def handle_static(self, parsed):
+        path = parsed.path
+        if path == "/":
+            path = "/index.html"
+
+        # Prevent path traversal
+        safe_path = os.path.normpath(path).lstrip("/")
+        file_path = os.path.join(STATIC_DIR, safe_path)
+
+        if not file_path.startswith(STATIC_DIR) or not os.path.isfile(file_path):
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"Not found")
+            return
+
+        content_type, _ = mimetypes.guess_type(file_path)
+        content_type = content_type or "application/octet-stream"
+
+        with open(file_path, "rb") as f:
+            body = f.read()
+
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format, *args):
+        # Keep Railway logs cleaner
+        print(f"{self.address_string()} - {format % args}")
+
 def run():
     host = "0.0.0.0"
     port = int(os.environ.get("PORT", 8000))
@@ -66,7 +99,3 @@ def run():
 
 if __name__ == "__main__":
     run()
-```
-
-**requirements.txt**
-```
