@@ -1,3 +1,4 @@
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import urllib.request
@@ -56,11 +57,16 @@ class FetchHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(f"Server Error: {str(e)}".encode())
 
-def run(host="localhost", port=8000):
+def run():
+    host = "0.0.0.0"
+    port = int(os.environ.get("PORT", 8000))
     server = HTTPServer((host, port), FetchHandler)
-    print(f"Serving on http://{host}:{port}")
-    print(f"Try: http://{host}:{port}/fetch?url=https://example.com")
+    print(f"Serving on {host}:{port}")
     server.serve_forever()
 
 if __name__ == "__main__":
     run()
+```
+
+**requirements.txt**
+```
