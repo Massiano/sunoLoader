@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>URL Fetcher</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e38;
+    --text: #e6e8eb;
+    --muted: #8b8f99;
+    --accent: #5b8cff;
+    --accent-hover: #4472e0;
+    --error: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    padding: 48px 16px;
+    min-height: 100vh;
+  }
+  .container {
+    width: 100%;
+    max-width: 720px;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+  }
+  p.subtitle {
+    color: var(--muted);
+    margin-top: 0;
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  form {
+    display: flex;
+    gap: 8px;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: #0f1115;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+  }
+  input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .status {
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--muted);
+    min-height: 18px;
+  }
+  .status.error { color: var(--error); }
+  .result {
+    margin-top: 16px;
+    background: #0f1115;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    max-height: 480px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    display: none;
+  }
+  .meta {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    display: none;
+  }
+  .meta span {
+    background: var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>URL Fetcher</h1>
+    <p class="subtitle">Enter a URL and the server will fetch it for you.</p>
+
+    <div class="card">
+      <form id="fetchForm">
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="https://example.com"
+          autocomplete="off"
+          required
+        />
+        <button type="submit" id="submitBtn">Fetch</button>
+      </form>
+      <div class="status" id="status"></div>
+      <div class="meta" id="meta"></div>
+      <div class="result" id="result"></div>
+    </div>
+  </div>
+
+<script>
+  const form = document.getElementById('fetchForm');
+  const urlInput = document.getElementById('urlInput');
+  const submitBtn = document.getElementById('submitBtn');
+  const statusEl = document.getElementById('status');
+  const resultEl = document.getElementById('result');
+  const metaEl = document.getElementById('meta');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const url = urlInput.value.trim();
+    if (!url) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Fetching...';
+    statusEl.textContent = 'Requesting...';
+    statusEl.classList.remove('error');
+    resultEl.style.display = 'none';
+    metaEl.style.display = 'none';
+
+    const start = performance.now();
+
+    try {
+      const res = await fetch(`/fetch?url=${encodeURIComponent(url)}`);
+      const contentType = res.headers.get('Content-Type') || 'unknown';
+      const text = await res.text();
+      const elapsed = Math.round(performance.now() - start);
+
+      statusEl.textContent = res.ok
+        ? `Done in ${elapsed}ms`
+        : `Request completed with status ${res.status}`;
+      statusEl.classList.toggle('error', !res.ok);
+
+      metaEl.innerHTML = `<span>Status: ${res.status}</span><span>Type: ${contentType}</span><span>Size: ${text.length.toLocaleString()} chars</span>`;
+      metaEl.style.display = 'block';
+
+      resultEl.textContent = text;
+      resultEl.style.display = 'block';
+    } catch (err) {
+      statusEl.textContent = `Error: ${err.message}`;
+      statusEl.classList.add('error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Fetch';
+    }
+  });
+</script>
+</body>
+</html>
