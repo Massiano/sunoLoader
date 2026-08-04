@@ -1,7 +1,6 @@
 import json
 import requests
 from bs4 import BeautifulSoup
-from pythonLibraries.rsc import fetch_and_parse_rsc
 
 def parse_suno_song_html(html_content: str) -> dict:
     soup = BeautifulSoup(html_content, "html.parser")
@@ -24,30 +23,16 @@ def resolve_share_url(share_url):
         return response.url
     except Exception: return share_url
 
-def parse_suno_content(target_url):
-    resolved_url = resolve_share_url(target_url)
-    
-    # Use rsc.py to handle the heavy lifting of fetching and parsing the RSC/HTML payload
-    rsc_result = fetch_and_parse_rsc(resolved_url)
-    
-    # Fetch raw HTML separately just for BeautifulSoup metadata parsing
-    html_metadata = {}
-    try:
-        html_response = requests.get(resolved_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        html_metadata = parse_suno_song_html(html_response.text)
-    except Exception: pass
-
+def parse_suno_payload(rsc_result, html_content, resolved_url):
+    html_metadata = parse_suno_song_html(html_content) if html_content else {}
     if not rsc_result.get("is_rsc"):
         return {"resolved_url": resolved_url, "type": "unknown", "html_metadata": html_metadata, "raw": rsc_result}
-    
     chunks = rsc_result.get("chunks", [])
     suno_data = {"resolved_url": resolved_url, "songs": [], "playlists": []}
-    
     for chunk in chunks:
         content = chunk.get("content")
         if isinstance(content, dict):
             if "id" in content and "audio_url" in content: suno_data["songs"].append(content)
             elif "id" in content and "clips" in content: suno_data["playlists"].append(content)
-            
     content_type = "song" if "/song/" in resolved_url else ("playlist" if "/playlist/" in resolved_url else "generic")
     return {"resolved_url": resolved_url, "type": content_type, "success": True, "html_metadata": html_metadata, "parsed_data": suno_data}
