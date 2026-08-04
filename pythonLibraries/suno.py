@@ -22,43 +22,20 @@ def extract_song_info_simple(html_content: str) -> dict:
     soup = BeautifulSoup(html_content, 'html.parser')
     result = {'title': None, 'author': None, 'author_handle': None, 'song_id': None}
     
-    h1_tag = soup.find('h1', class_=lambda c: c and 'text-[2.5rem]' in c and 'text-foreground-primary' in c)
-    if h1_tag and h1_tag.string:
-        result['title'] = h1_tag.string.strip()
-    
-    if not result['title']:
-        h1_fallback = soup.find('h1')
-        if h1_fallback and h1_fallback.string:
-            result['title'] = h1_fallback.string.strip()
-
-    container = soup.select_one('#main-container div div div.flex.flex-row.items-start.justify-stretch')
+    container = soup.select_one('#main-container > div > div > div')
     if container:
-        author_tag = container.select_one('a[href^="/@"]')
+        h1_tag = container.find('h1')
+        if h1_tag:
+            result['title'] = h1_tag.get_text(strip=True)
+            
+        author_tag = container.find('a', href=re.compile(r'^/@'))
         if author_tag:
             result['author'] = author_tag.get_text(strip=True)
             href = author_tag.get('href', '')
             if href.startswith('/@'):
                 result['author_handle'] = href[2:]
-
-    if not result['author']:
-        author_tag = soup.find('a', href=re.compile(r'^/@'))
-        if author_tag:
-            result['author'] = author_tag.get_text(strip=True)
-            href = author_tag.get('href', '')
-            if href.startswith('/@'):
-                result['author_handle'] = href[2:]
-
-    for script in soup.find_all('script'):
-        if not script.string: continue
-        script_text = script.string
-        if 'id' in script_text:
-            id_match = re.search(r'"id":"([a-f0-9-]{36})"', script_text)
-            if id_match: 
-                result['song_id'] = id_match.group(1)
-                break
-
+                
     return result
-
 import json
 import re
 from typing import List, Dict
