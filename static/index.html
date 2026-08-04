@@ -21,7 +21,7 @@
         <h2>Suno & RSC Universal Inspector</h2>
         <p>Enter any Suno URL or Share-URL to parse HTML metadata and RSC payloads:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-            <input type="text" id="urlInput" placeholder="https://suno.com/s/My0OwL2naY5TSYkD">
+            <input type="text" id="urlInput" placeholder="https://suno.com/song/...">
             <button onclick="fetchSuno()">Full Parse</button>
             <button onclick="testParserSongHtml()" style="background: #10b981;">test parser song-html</button>
             <button onclick="checkDiagnostics()" style="background: #4a5568;">Server Diagnostics</button>
@@ -48,9 +48,7 @@
                 if (!response.ok) throw new Error(data.error || "Failed to process");
                 let html = `<h3>Comprehensive Output:</h3>`;
                 html += `<p><strong>Resolved URL:</strong> <a href="${data.resolved_url}" target="_blank">${data.resolved_url}</a></p>`;
-                html += `<p><span class="badge badge-success">Type: ${data.type}</span><span class="badge badge-info">URL Class: ${data.url_type}</span><span class="badge badge-info">Heuristic: ${data.heuristic_type}</span></p>`;
-                html += `<h4>HTML Metadata Parsing:</h4><pre>${JSON.stringify(data.html_metadata, null, 2)}</pre>`;
-                html += `<h4>RSC Payload Parsing:</h4><pre>${JSON.stringify(data.parsed_data || data.raw, null, 2)}</pre>`;
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
                 resultDiv.innerHTML = html;
             } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
@@ -59,28 +57,25 @@
             const url = document.getElementById("urlInput").value;
             const resultDiv = document.getElementById("result");
             if (!url) return alert("Please enter a URL");
-            resultDiv.innerHTML = "<p>Testing song HTML parser function...</p>";
+            resultDiv.innerHTML = "<p>Testing parse_suno_song_HTML parser...</p>";
             try {
                 const response = await fetch("/test-parser-song-html", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || "Failed to test parser");
                 let html = `<h3>Song HTML Parser Test Result:</h3>`;
                 html += `<p><strong>Target URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>`;
-                html += `<h4>Extracted Data:</h4><pre>${JSON.stringify(data.parsed_result, null, 2)}</pre>`;
+                html += `<h4>Extracted Songs Array:</h4><pre>${JSON.stringify(data.parsed_result, null, 2)}</pre>`;
                 resultDiv.innerHTML = html;
             } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
 
         async function checkDiagnostics() {
             const resultDiv = document.getElementById("result");
-            resultDiv.innerHTML = "<p>Checking server health and available functions...</p>";
+            resultDiv.innerHTML = "<p>Checking server health...</p>";
             try {
                 const response = await fetch("/diagnostics");
                 const data = await response.json();
-                let html = `<h3>Server Diagnostics:</h3>`;
-                html += `<p><span class="badge badge-success">Status: ${data.status}</span></p>`;
-                html += `<h4>Available Library Functions:</h4><pre>${JSON.stringify(data.available_functions, null, 2)}</pre>`;
-                resultDiv.innerHTML = html;
+                resultDiv.innerHTML = `<h3>Server Diagnostics:</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
             } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
     </script>
