@@ -16,7 +16,7 @@
 <body>
     <div class="card">
         <h2>Suno & RSC Comprehensive Inspector</h2>
-        <p>Parse HTML Header, HTML DOM, and RSC for both songs and playlist pages:</p>
+        <p>Parse HTML Header, HTML DOM (as raw string), and RSC for both songs and playlist pages:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
             <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/...">
             <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
@@ -40,11 +40,11 @@
                     <h3>Results for (${currentData.page_type}):</h3>
                     <div>
                         <button class="download-btn" onclick="downloadJSON('html_header')">Download HTML Header JSON</button>
-                        <button class="download-btn" onclick="downloadJSON('html_dom')">Download HTML DOM JSON</button>
+                        <button class="download-btn" onclick="downloadDOM()">Download HTML DOM String (.html)</button>
                         <button class="download-btn" onclick="downloadJSON('rsc_payload')">Download RSC Payload JSON</button>
                     </div>
                     <h4>HTML Header:</h4><pre>${JSON.stringify(currentData.html_header, null, 2)}</pre>
-                    <h4>HTML DOM Preview:</h4><pre>${JSON.stringify(currentData.html_dom, null, 2)}</pre>
+                    <h4>HTML DOM Preview (First 500 chars):</h4><pre>${escapeHtml(currentData.html_dom.substring(0, 500))}...</pre>
                     <h4>RSC Payload Preview:</h4><pre>${JSON.stringify(currentData.rsc_payload, null, 2)}</pre>
                 `;
             } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
@@ -53,12 +53,26 @@
         function downloadJSON(type) {
             if (!currentData || !currentData[type]) return alert("No data available to download");
             const blob = new Blob([JSON.stringify(currentData[type], null, 2)], { type: "application/json" });
+            triggerDownload(blob, `suno_${currentData.page_type}_${type}.json`);
+        }
+
+        function downloadDOM() {
+            if (!currentData || !currentData.html_dom) return alert("No DOM data available to download");
+            const blob = new Blob([currentData.html_dom], { type: "text/html" });
+            triggerDownload(blob, `suno_${currentData.page_type}_dom.html`);
+        }
+
+        function triggerDownload(blob, filename) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `suno_${currentData.page_type}_${type}.json`;
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
     </script>
 </body>
