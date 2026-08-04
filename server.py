@@ -110,6 +110,7 @@ def api_classify_and_parse():
         return jsonify({
             "status": "success",
             "resolved_url": target_url,
+            "classified_type": page_type,  # <--- Ensured this key is explicitly sent
             "url_type": url_type,
             "html_parser_results": {
                 "song_parser": song_html_res,
