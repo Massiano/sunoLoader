@@ -1,11 +1,8 @@
-import json
-import re
-import requests
+import json, re, requests
+from bs4 import BeautifulSoup
 
 def parse_rsc_payload(text):
-    lines = text.split("\n")
-    parsed_chunks = []
-    rsc_pattern = re.compile(r"^([0-9a-f]+):(.*)$")
+    lines, parsed_chunks, rsc_pattern = text.split("\n"), [], re.compile(r"^([0-9a-f]+):(.*)$")
     for line in lines:
         match = rsc_pattern.match(line.strip())
         if match:
@@ -15,19 +12,40 @@ def parse_rsc_payload(text):
             parsed_chunks.append({"id": chunk_id, "content": parsed_content})
     return parsed_chunks
 
-def fetch_and_parse_rsc(target_url):
-    headers = {"RSC": "1", "User-Agent": "Mozilla/5.0"}
-    response = requests.get(target_url, headers=headers, timeout=10)
-    response.raise_for_status()
-    content = response.text
-    content_type = response.headers.get("Content-Type", "")
-    is_direct_rsc = "text/x-component" in content_type or bool(re.search(r"^[0-9a-f]+:", content, re.MULTILINE))
-    if is_direct_rsc:
-        return {"success": True, "is_rsc": True, "source": "direct_stream", "message": "Direct RSC stream successfully detected and parsed!", "chunks": parse_rsc_payload(content)}
-    embedded_matches = re.findall(r'__next_f\.push\(\s*\[\s*\d+,\s*"(.*?)"\s*\]\s*\)', content)
+def extract_html_header_data(soup):
+    header_data = {"title": soup.title.string.strip() if soup.title and soup.title.string else None, "meta": {}}
+    for meta in soup.find_all("meta"):
+        name, prop, content = meta.get("name"), meta.get("property"), meta.get("content")
+        key = name or prop
+        if key and content: header_data["meta"][key] = content.strip()
+    return header_data
+
+def extract_html_dom_data(soup, page_type="song"):
+    dom_data = {"page_type": page_type, "headings": [h.get_text(strip=True) for h in soup.find_all(["h1", "h2", "h3"])], "text_content": soup.get_text(separator=" ", strip=True)}
+    if page_type == "playlist":
+        dom_data["items"] = [item.get_text(strip=True) for item in soup.find_all(class_=lambda x: x and any(t in x.lower() for t in ["track", "song-item", "playlist-item"]))]
+    else:
+        lyrics_elem = soup.find(class_=lambda x: x and any(t in x.lower() for t in ["lyrics", "song-content"]))
+        dom_data["lyrics"] = lyrics_elem.get_text(separator="\n", strip=True) if lyrics_elem else None
+    return dom_data
+
+def fetch_and_parse_comprehensive(target_url, page_type="song"):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    resp = requests.get(target_url, headers=headers, timeout=10)
+    resp.raise_for_status()
+    html_text = resp.text
+    soup = BeautifulSoup(html_text, "html.parser")
+    
+    html_header = extract_html_header_data(soup)
+    html_dom = extract_html_dom_data(soup, page_type)
+    
+    # Extract RSC if present via embedded Next.js or direct stream
+    rsc_chunks = []
+    embedded_matches = re.findall(r'__next_f\.push\(\s*\[\s*\d+,\s*"(.*?)"\s*\]\s*\)', html_text)
     if embedded_matches:
-        combined_rsc_text = "".join([m.encode().decode('unicode-escape') + "\n" for m in embedded_matches])
-        parsed_data = parse_rsc_payload(combined_rsc_text)
-        if parsed_data:
-            return {"success": True, "is_rsc": True, "source": "embedded_html", "message": "Embedded RSC payload found inside HTML and parsed!", "chunks": parsed_data}
-    return {"success": True, "is_rsc": False, "message": "Fetched successfully, but no direct or embedded RSC blob was found.", "raw_preview": content[:500]}
+        combined = "".join([m.encode().decode('unicode-escape') + "\n" for m in embedded_matches])
+        rsc_chunks = parse_rsc_payload(combined)
+    elif "text/x-component" in resp.headers.get("Content-Type", ""):
+        rsc_chunks = parse_rsc_payload(html_text)
+
+    return {"url": target_url, "page_type": page_type, "html_header": html_header, "html_dom": html_dom, "rsc_payload": rsc_chunks}
