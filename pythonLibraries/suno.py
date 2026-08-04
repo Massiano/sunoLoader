@@ -36,6 +36,7 @@ def extract_song_info_simple(html_content: str) -> dict:
                 result['author_handle'] = href[2:]
                 
     return result
+
 import json
 import re
 from typing import List, Dict
