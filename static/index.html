@@ -21,6 +21,7 @@
             <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/..." />
             <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
             <button onclick="testSongParser()" style="background: #8b5cf6;">Test Song HTML Parser</button>
+            <button onclick="parseSongWorkhorse()" style="background: #f59e0b;">Parse Song (Workhorse)</button>
         </div>
         <div id="result"></div>
     </div>
@@ -65,6 +66,26 @@
                     <h3>Parsed Song/Playlist Output:</h3>
                     <p><strong>Resolved URL:</strong> ${json.url}</p>
                     <pre>${JSON.stringify(json.parsed_result, null, 2)}</pre>
+                `;
+            } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
+        }
+
+        async function parseSongWorkhorse() {
+            const url = document.getElementById("urlInput").value;
+            const resDiv = document.getElementById("result");
+            if (!url) return alert("Please enter a URL");
+            resDiv.innerHTML = "<p>Executing workhorse parser function (`parseSongHTML`).../p>";
+            try {
+                const resp = await window.fetch("/api/parse-song", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+                const json = await resp.json();
+                if (!resp.ok) throw new Error(json.message || "Failed");
+
+                resDiv.innerHTML = `
+                    <h3>Workhorse Parser Result (`parseSongHTML`):</h3>
+                    <p><strong>Target URL:</strong> ${json.url}</p>
+                    <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
+                    <h4>Extracted Data:</h4>
+                    <pre>${JSON.stringify(json.data, null, 2)}</pre>
                 `;
             } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
