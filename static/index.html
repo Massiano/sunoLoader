@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RSC Blob Parser</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RSC Blob Parser</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -21,42 +19,28 @@
         <h2>React Server Components (RSC) Parser</h2>
         <p>Enter a URL that serves an RSC payload to fetch and parse it:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <input type="text" id="urlInput" placeholder="https://example.com/page">
-            <button onclick="fetchRSC()">Fetch & Parse</button>
+            <input type="text" id="urlInput" placeholder="https://example.com/page"><button onclick="fetchRSC()">Fetch & Parse</button>
         </div>
         <div id="result"></div>
     </div>
-
     <script>
         async function fetchRSC() {
             const url = document.getElementById("urlInput").value;
             const resultDiv = document.getElementById("result");
             if (!url) return alert("Please enter a URL");
-
             resultDiv.innerHTML = "<p>Loading and analyzing...</p>";
-
             try {
-                const response = await fetch("/process", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url })
-                });
+                const response = await fetch("/process", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
                 const data = await response.json();
-
                 if (!response.ok) throw new Error(data.error || "Failed to process");
-
                 let html = `<h3>Result:</h3>`;
                 if (data.is_rsc) {
-                    html += `<p><span class="badge badge-success">RSC Detected</span> ${data.message}</p>`;
-                    html += `<pre>${JSON.stringify(data.chunks, null, 2)}</pre>`;
+                    html += `<p><span class="badge badge-success">RSC Detected (${data.source})</span> ${data.message}</p><pre>${JSON.stringify(data.chunks, null, 2)}</pre>`;
                 } else {
-                    html += `<p><span class="badge badge-warning">No RSC Blob</span> ${data.message}</p>`;
-                    html += `<pre>${data.raw_preview}</pre>`;
+                    html += `<p><span class="badge badge-warning">No RSC Blob</span> ${data.message}</p><pre>${data.raw_preview}</pre>`;
                 }
                 resultDiv.innerHTML = html;
-            } catch (err) {
-                resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`;
-            }
+            } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
     </script>
 </body>
