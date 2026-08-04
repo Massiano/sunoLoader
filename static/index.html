@@ -17,14 +17,12 @@
 </head>
 <body>
     <div class="card">
-        <h2>Suno & RSC Comprehensive Inspector</h2>
-        <p>Parse HTML Header, HTML DOM, RSC Payload, or extract Song/Playlist details using your backend utilities:</p>
+        <h2>Suno Universal Inspector</h2>
+        <p>Classifies the URL, executes song or playlist parsing using both HTML and RSC methods, and displays both results:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
             <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/..." />
             <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
-            <button onclick="testSongParser()" style="background: #8b5cf6;">Test Song HTML Parser</button>
-            <button onclick="parseSongWorkhorse()" style="background: #f59e0b;">Parse Song (Workhorse)</button>
-            <button onclick="fetchDualParse()" style="background: #ec4899;">Dual Parse (HTML + RSC)</button>
+            <button onclick="getSunoInfo()" style="background: #ec4899;">Get Suno Info</button>
         </div>
         <div id="result"></div>
     </div>
@@ -55,56 +53,19 @@
             } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
 
-        async function testSongParser() {
+        async function getSunoInfo() {
             const url = document.getElementById("urlInput").value;
             const resDiv = document.getElementById("result");
             if (!url) return alert("Please enter a URL");
-            resDiv.innerHTML = "<p>Running song/playlist utility parser...</p>";
+            resDiv.innerHTML = "<p>Classifying URL and executing dual-stream parsing...</p>";
             try {
-                const resp = await window.fetch("/test-parser-song-html", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-                const json = await resp.json();
-                if (!resp.ok) throw new Error(json.error || "Failed");
-
-                resDiv.innerHTML = `
-                    <h3>Parsed Song/Playlist Output:</h3>
-                    <p><strong>Resolved URL:</strong> ${json.url}</p>
-                    <pre>${JSON.stringify(json.parsed_result, null, 2)}</pre>
-                `;
-            } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
-        }
-
-        async function parseSongWorkhorse() {
-            const url = document.getElementById("urlInput").value;
-            const resDiv = document.getElementById("result");
-            if (!url) return alert("Please enter a URL");
-            resDiv.innerHTML = "<p>Executing workhorse parser function (<code>parseSongHTML</code>)...</p>";
-            try {
-                const resp = await window.fetch("/api/parse-song", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+                const resp = await window.fetch("/api/get-suno-info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
                 const json = await resp.json();
                 if (!resp.ok) throw new Error(json.message || "Failed");
 
                 resDiv.innerHTML = `
-                    <h3>Workhorse Parser Result (<code>parseSongHTML</code>):</h3>
-                    <p><strong>Target URL:</strong> ${json.url}</p>
-                    <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
-                    <h4>Extracted Data:</h4>
-                    <pre>${JSON.stringify(json.data, null, 2)}</pre>
-                `;
-            } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
-        }
-
-        async function fetchDualParse() {
-            const url = document.getElementById("urlInput").value;
-            const resDiv = document.getElementById("result");
-            if (!url) return alert("Please enter a URL");
-            resDiv.innerHTML = "<p>Executing Dual Parse (HTML Parser + RSC Payload)...</p>";
-            try {
-                const resp = await window.fetch("/api/dual-parse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-                const json = await resp.json();
-                if (!resp.ok) throw new Error(json.message || "Failed");
-
-                resDiv.innerHTML = `
-                    <h3>Dual Parser Results:</h3>
+                    <h3>Suno Info Results:</h3>
+                    <p><strong>Page Type:</strong> ${json.page_type}</p>
                     <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
                     <div class="dual-container">
                         <div class="dual-column">
