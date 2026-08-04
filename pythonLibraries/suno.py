@@ -21,29 +21,42 @@ def classify_suno_url(url):
 def extract_song_info_simple(html_content: str) -> dict:
     soup = BeautifulSoup(html_content, 'html.parser')
     result = {'title': None, 'author': None, 'author_handle': None, 'song_id': None}
+    
+    h1_tag = soup.find('h1', class_=lambda c: c and 'text-[2.5rem]' in c and 'text-foreground-primary' in c)
+    if h1_tag and h1_tag.string:
+        result['title'] = h1_tag.string.strip()
+    
+    if not result['title']:
+        h1_fallback = soup.find('h1')
+        if h1_fallback and h1_fallback.string:
+            result['title'] = h1_fallback.string.strip()
+
+    container = soup.select_one('#main-container div div div.flex.flex-row.items-start.justify-stretch')
+    if container:
+        author_tag = container.select_one('a[href^="/@"]')
+        if author_tag:
+            result['author'] = author_tag.get_text(strip=True)
+            href = author_tag.get('href', '')
+            if href.startswith('/@'):
+                result['author_handle'] = href[2:]
+
+    if not result['author']:
+        author_tag = soup.find('a', href=re.compile(r'^/@'))
+        if author_tag:
+            result['author'] = author_tag.get_text(strip=True)
+            href = author_tag.get('href', '')
+            if href.startswith('/@'):
+                result['author_handle'] = href[2:]
+
     for script in soup.find_all('script'):
         if not script.string: continue
         script_text = script.string
-        if 'display_name' in script_text and 'handle' in script_text and 'title' in script_text:
-            id_match = re.search(r'"id":"([^"]+?)"', script_text)
-            if id_match: result['song_id'] = id_match.group(1)
-            title_match = re.search(r'"title":"([^"]+?)"', script_text)
-            if title_match: result['title'] = title_match.group(1)
-            author_match = re.search(r'"display_name":"([^"]+?)"', script_text)
-            if author_match: result['author'] = author_match.group(1)
-            handle_match = re.search(r'"handle":"([^"]+?)"', script_text)
-            if handle_match: result['author_handle'] = handle_match.group(1)
-            if all(result.values()): return result
-    if not result['title'] or not result['author']:
-        title_tag = soup.find('title')
-        if title_tag and title_tag.string:
-            match = re.match(r'^(.*?)\s+by\s+(.*?)\s*[|•-]', title_tag.string)
-            if match:
-                result['title'] = result['title'] or match.group(1).strip()
-                if not result['author']: result['author'] = match.group(2).strip()
-    if not result['title']:
-        og_title = soup.find('meta', {'property': 'og:title'})
-        if og_title and og_title.get('content'): result['title'] = og_title['content']
+        if 'id' in script_text:
+            id_match = re.search(r'"id":"([a-f0-9-]{36})"', script_text)
+            if id_match: 
+                result['song_id'] = id_match.group(1)
+                break
+
     return result
 
 import json
