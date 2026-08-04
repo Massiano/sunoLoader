@@ -1,82 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Suno & RSC Comprehensive Inspector</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Suno Universal Inspector</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; color: #333; max-width: 950px; margin: 40px auto; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input[type="text"] { width: 60%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="text"] { width: 65%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
         button { padding: 10px 15px; background: #0070f3; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; margin-bottom: 5px; }
         button:hover { background: #0051a2; }
-        pre { background: #1e1e1e; color: #dcdcdc; padding: 15px; border-radius: 5px; overflow-x: auto; max-height: 400px; }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px; }
-        .badge-success { background: #e1ffd8; color: #00600a; }
-        .badge-info { background: #d8f3ff; color: #004b60; }
-        .preset-urls { margin-top: 10px; font-size: 0.9em; }
-        .preset-urls a { color: #0070f3; cursor: pointer; text-decoration: underline; margin-right: 15px; }
+        pre { background: #1e1e1e; color: #dcdcdc; padding: 15px; border-radius: 5px; overflow-x: auto; max-height: 300px; }
+        .download-btn { background: #10b981; }
+        .download-btn:hover { background: #059669; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Suno & RSC Universal Inspector</h2>
-        <p>Enter any Suno URL or Share-URL to parse HTML metadata and RSC payloads:</p>
+        <h2>Suno & RSC Comprehensive Inspector</h2>
+        <p>Parse HTML Header, HTML DOM, and RSC for both songs and playlist pages:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-            <input type="text" id="urlInput" placeholder="https://suno.com/song/...">
-            <button onclick="fetchSuno()">Full Parse</button>
-            <button onclick="testParserSongHtml()" style="background: #10b981;">test parser song-html</button>
-            <button onclick="checkDiagnostics()" style="background: #4a5568;">Server Diagnostics</button>
+            <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/...">
+            <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
         </div>
-        <div class="preset-urls">
-            <strong>Test URLs:</strong> 
-            <a onclick="setUrl('https://suno.com/song/0f4a755e-63ee-49ef-8f7c-af0500ed4577')">URL 1</a>
-            <a onclick="setUrl('https://suno.com/song/ee0f6f28-12ec-4052-a6d1-3452da5a0c7f')">URL 2</a>
-            <a onclick="setUrl('https://suno.com/song/9be0720c-2067-4d7d-ad8d-ecbb9d33b15b')">URL 3</a>
-        </div>
-        <div id="result" style="margin-top: 15px;"></div>
+        <div id="result"></div>
     </div>
     <script>
-        function setUrl(url) { document.getElementById("urlInput").value = url; }
+        let currentData = null;
 
-        async function fetchSuno() {
+        async function fetchComprehensive() {
             const url = document.getElementById("urlInput").value;
-            const resultDiv = document.getElementById("result");
+            const resDiv = document.getElementById("result");
             if (!url) return alert("Please enter a URL");
-            resultDiv.innerHTML = "<p>Resolving, fetching, and parsing HTML + RSC payloads...</p>";
+            resDiv.innerHTML = "<p>Fetching and extracting HTML Header, DOM, and RSC Payload...</p>";
             try {
-                const response = await fetch("/process", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || "Failed to process");
-                let html = `<h3>Comprehensive Output:</h3>`;
-                html += `<p><strong>Resolved URL:</strong> <a href="${data.resolved_url}" target="_blank">${data.resolved_url}</a></p>`;
-                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                resultDiv.innerHTML = html;
-            } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
+                const resp = await window.fetch("/api/parse-comprehensive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+                currentData = await resp.json();
+                if (!resp.ok) throw new Error(currentData.error || "Failed");
+
+                resDiv.innerHTML = `
+                    <h3>Results for (${currentData.page_type}):</h3>
+                    <div>
+                        <button class="download-btn" onclick="downloadJSON('html_header')">Download HTML Header JSON</button>
+                        <button class="download-btn" onclick="downloadJSON('html_dom')">Download HTML DOM JSON</button>
+                        <button class="download-btn" onclick="downloadJSON('rsc_payload')">Download RSC Payload JSON</button>
+                    </div>
+                    <h4>HTML Header:</h4><pre>${JSON.stringify(currentData.html_header, null, 2)}</pre>
+                    <h4>HTML DOM Preview:</h4><pre>${JSON.stringify(currentData.html_dom, null, 2)}</pre>
+                    <h4>RSC Payload Preview:</h4><pre>${JSON.stringify(currentData.rsc_payload, null, 2)}</pre>
+                `;
+            } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
 
-        async function testParserSongHtml() {
-            const url = document.getElementById("urlInput").value;
-            const resultDiv = document.getElementById("result");
-            if (!url) return alert("Please enter a URL");
-            resultDiv.innerHTML = "<p>Running parse_suno_song_HTML against target URL...</p>";
-            try {
-                const response = await fetch("/test-parser-song-html", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || "Failed to test parser");
-                let html = `<h3>Song HTML Parser Test Result:</h3>`;
-                html += `<p><strong>Target URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>`;
-                html += `<h4>Extracted Songs Array:</h4><pre>${JSON.stringify(data.parsed_result, null, 2)}</pre>`;
-                resultDiv.innerHTML = html;
-            } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
-        }
-
-        async function checkDiagnostics() {
-            const resultDiv = document.getElementById("result");
-            resultDiv.innerHTML = "<p>Checking server health...</p>";
-            try {
-                const response = await fetch("/diagnostics");
-                const data = await response.json();
-                resultDiv.innerHTML = `<h3>Server Diagnostics:</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
-            } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
+        function downloadJSON(type) {
+            if (!currentData || !currentData[type]) return alert("No data available to download");
+            const blob = new Blob([JSON.stringify(currentData[type], null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `suno_${currentData.page_type}_${type}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
