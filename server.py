@@ -27,11 +27,11 @@ def parse_song():
         if not data or 'url' not in data:
             return jsonify({'error': 'Missing URL', 'message': 'Please provide a "url" field in the request body'}), 400
         url = data['url'].strip()
-        logger.info(f"Parsing URL: {url}")
+        logger.info(f"Parsing URL via HTML and RSC: {url}")
         result = parser.parse_song_url(url)
         if result:
             return jsonify({'success': True, 'data': result})
-        return jsonify({'error': 'Parse failed', 'message': 'Could not parse the song URL. Please check if the URL is valid.'}), 404
+        return jsonify({'error': 'Parse failed', 'message': 'Could not parse the song URL using HTML or RSC. Please check if the URL is valid.'}), 404
     except Exception as e:
         logger.error(f"Error parsing song: {e}")
         return jsonify({'error': 'Server error', 'message': str(e)}), 500
