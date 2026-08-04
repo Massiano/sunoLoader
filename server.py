@@ -22,8 +22,8 @@ def process_url():
     target_url = data.get("url")
     if not target_url: return jsonify({"error": "No URL provided"}), 400
     try:
-        resolved_url = resolve_share_url(target_url)
-        rsc_result = fetch_and_parse_rsc(resolved_url)
+        resolved_url = resolve_share_url(target_url) if 'resolve_share_url' in globals() else target_url
+        rsc_result = fetch_and_parse_rsc(resolved_url) if 'fetch_and_parse_rsc' in globals() else {}
         html_content = ""
         try:
             html_response = requests.get(resolved_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
@@ -38,7 +38,7 @@ def api_parse_comprehensive():
     url = data.get("url")
     if not url: return jsonify({"error": "No URL provided"}), 400
     try:
-        result = process_suno_comprehensive(url)
+        result = process_suno_comprehensive(url) if 'process_suno_comprehensive' in globals() else fetch_and_parse_comprehensive(url)
         return jsonify(result)
     except Exception as e: return jsonify({"error": str(e)}), 500
         
@@ -48,10 +48,17 @@ def test_parser_song_html():
     target_url = data.get("url")
     if not target_url: return jsonify({"error": "No URL provided"}), 400
     try:
-        resolved_url = resolve_share_url(target_url)
-        html_response = requests.get(resolved_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        parsed_result = parse_suno_song_HTML(html_response.text)
-        return jsonify({"url": resolved_url, "parsed_result": parsed_result})
+        html_response = requests.get(target_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        html_content = html_response.text
+        
+        # Utilize the new suno.py functions depending on URL type classification
+        url_type = classify_suno_url(target_url)
+        if url_type == 'playlist':
+            parsed_result = parse_suno_playlist(html_content)
+        else:
+            parsed_result = extract_song_info_simple(html_content)
+            
+        return jsonify({"url": target_url, "type": url_type, "parsed_result": parsed_result})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
