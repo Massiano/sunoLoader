@@ -11,6 +11,8 @@
         pre { background: #1e1e1e; color: #dcdcdc; padding: 15px; border-radius: 5px; overflow-x: auto; max-height: 300px; }
         .download-btn { background: #10b981; }
         .download-btn:hover { background: #059669; }
+        .dual-container { display: flex; gap: 15px; flex-wrap: wrap; }
+        .dual-column { flex: 1; min-width: 300px; background: #fafafa; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
     </style>
 </head>
 <body>
@@ -22,6 +24,7 @@
             <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
             <button onclick="testSongParser()" style="background: #8b5cf6;">Test Song HTML Parser</button>
             <button onclick="parseSongWorkhorse()" style="background: #f59e0b;">Parse Song (Workhorse)</button>
+            <button onclick="fetchDualParse()" style="background: #ec4899;">Dual Parse (HTML + RSC)</button>
         </div>
         <div id="result"></div>
     </div>
@@ -74,7 +77,7 @@
             const url = document.getElementById("urlInput").value;
             const resDiv = document.getElementById("result");
             if (!url) return alert("Please enter a URL");
-            resDiv.innerHTML = "<p>Executing workhorse parser function (`parseSongHTML`).../p>";
+            resDiv.innerHTML = "<p>Executing workhorse parser function (`parseSongHTML`)...</p>";
             try {
                 const resp = await window.fetch("/api/parse-song", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
                 const json = await resp.json();
@@ -86,6 +89,33 @@
                     <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
                     <h4>Extracted Data:</h4>
                     <pre>${JSON.stringify(json.data, null, 2)}</pre>
+                `;
+            } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
+        }
+
+        async function fetchDualParse() {
+            const url = document.getElementById("urlInput").value;
+            const resDiv = document.getElementById("result");
+            if (!url) return alert("Please enter a URL");
+            resDiv.innerHTML = "<p>Executing Dual Parse (HTML Parser + RSC Payload)...</p>";
+            try {
+                const resp = await window.fetch("/api/dual-parse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+                const json = await resp.json();
+                if (!resp.ok) throw new Error(json.message || "Failed");
+
+                resDiv.innerHTML = `
+                    <h3>Dual Parser Results:</h3>
+                    <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
+                    <div class="dual-container">
+                        <div class="dual-column">
+                            <h4>HTML Parser Result</h4>
+                            <pre>${JSON.stringify(json.html_parser_result, null, 2)}</pre>
+                        </div>
+                        <div class="dual-column">
+                            <h4>RSC Parser Result</h4>
+                            <pre>${JSON.stringify(json.rsc_parser_result, null, 2)}</pre>
+                        </div>
+                    </div>
                 `;
             } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
