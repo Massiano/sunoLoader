@@ -18,11 +18,13 @@
 <body>
     <div class="card">
         <h2>Suno Universal Inspector</h2>
-        <p>Classifies the URL, executes song or playlist parsing using both HTML and RSC methods, and displays both results:</p>
+        <p>Classifies the URL, executes song or playlist parsing using both HTML and RSC methods, and displays both results[cite: 1]:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
             <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/..." />
             <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
             <button onclick="getSunoInfo()" style="background: #ec4899;">Get Suno Info</button>
+            <button onclick="classifyUrlEndpoint()">Classify URL (Type & ID)</button>
+            <button onclick="classifyAndParseEndpoint()" style="background: #8b5cf6;">Classify, Pick & Dual Parse</button>
         </div>
         <div id="result"></div>
     </div>
@@ -81,6 +83,72 @@
             } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
 
+        async function classifyUrlEndpoint() {
+            const url = document.getElementById("urlInput").value;
+            const resDiv = document.getElementById("result");
+            if (!url) return alert("Please enter a URL");
+            resDiv.innerHTML = "<p>Classifying URL Type and ID...</p>";
+            
+            try {
+                const resp = await window.fetch("/api/classify-url", { 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, 
+                    body: JSON.stringify({ url }) 
+                });
+                const json = await resp.json();
+                if (!resp.ok) throw new Error(json.message || "Failed");
+
+                resDiv.innerHTML = `
+                    <h3>URL Classification Result:</h3>
+                    <p><strong>Original URL:</strong> ${json.original_url}</p>
+                    <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
+                    <p><strong>Detected Type:</strong> <span style="color: #0070f3; font-weight: bold;">${json.url_type}</span></p>
+                    <p><strong>Extracted ID:</strong> <span style="background: #eef2f6; padding: 3px 6px; border-radius: 4px; font-family: monospace;">${json.item_id || "None found"}</span></p>
+                `;
+            } catch (err) { 
+                resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; 
+            }
+        }
+
+        async function classifyAndParseEndpoint() {
+            const url = document.getElementById("urlInput").value;
+            const resDiv = document.getElementById("result");
+            if (!url) return alert("Please enter a URL");
+            resDiv.innerHTML = "<p>Classifying content category, executing song/playlist parsers, and loading streams...</p>";
+            
+            try {
+                const resp = await window.fetch("/api/classify-and-parse", { 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, 
+                    body: JSON.stringify({ url }) 
+                });
+                const json = await resp.json();
+                if (!resp.ok) throw new Error(json.message || "Failed");
+
+                resDiv.innerHTML = `
+                    <h3>Comprehensive Classification & Dual Parsing Results:</h3>
+                    <p><strong>Target Picked Category:</strong> <span style="background: #10b981; color: white; padding: 3px 6px; border-radius: 4px;">${json.classified_type.toUpperCase()}</span></p>
+                    <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
+                    
+                    <div class="dual-container" style="margin-top: 15px;">
+                        <div class="dual-column">
+                            <h4>Song HTML Parser Output</h4>
+                            <pre>${JSON.stringify(json.html_parser_results.song_parser, null, 2)}</pre>
+                        </div>
+                        <div class="dual-column">
+                            <h4>Playlist HTML Parser Output</h4>
+                            <pre>${JSON.stringify(json.html_parser_results.playlist_parser, null, 2)}</pre>
+                        </div>
+                    </div>
+                    
+                    <h4 style="margin-top: 15px;">RSC Payload Data Stream:</h4>
+                    <pre>${JSON.stringify(json.rsc_parser_result, null, 2)}</pre>
+                `;
+            } catch (err) { 
+                resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; 
+            }
+        }
+
         function downloadJSON(type) {
             if (!currentData || !currentData[type]) return alert("No data available to download");
             const blob = new Blob([JSON.stringify(currentData[type], null, 2)], { type: "application/json" });
@@ -108,3 +176,4 @@
     </script>
 </body>
 </html>
+```[cite: 1]
