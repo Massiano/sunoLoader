@@ -1,8 +1,8 @@
 import os
 import requests
 from flask import Flask, send_from_directory, request, jsonify
-from pythonLibraries.rsc import fetch_and_parse_rsc
-from pythonLibraries.suno import resolve_share_url, parse_suno_payload, parse_suno_song_HTML, run_diagnostics_suite
+from pythonLibraries.rsc import *
+from pythonLibraries.suno import *
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
