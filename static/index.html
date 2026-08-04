@@ -18,11 +18,10 @@
 <body>
     <div class="card">
         <h2>Suno Universal Inspector</h2>
-        <p>Classifies the URL, executes song or playlist parsing using both HTML and RSC methods, and displays both results[cite: 1]:</p>
+        <p>Classifies the URL, executes song or playlist parsing using both HTML and RSC methods, and displays both results:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
             <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/..." />
             <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
-            <button onclick="getSunoInfo()" style="background: #ec4899;">Get Suno Info</button>
             <button onclick="classifyUrlEndpoint()">Classify URL (Type & ID)</button>
             <button onclick="classifyAndParseEndpoint()" style="background: #8b5cf6;">Classify, Pick & Dual Parse</button>
         </div>
@@ -55,34 +54,6 @@
             } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
 
-        async function getSunoInfo() {
-            const url = document.getElementById("urlInput").value;
-            const resDiv = document.getElementById("result");
-            if (!url) return alert("Please enter a URL");
-            resDiv.innerHTML = "<p>Classifying URL and executing dual-stream parsing...</p>";
-            try {
-                const resp = await window.fetch("/api/get-suno-info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-                const json = await resp.json();
-                if (!resp.ok) throw new Error(json.message || "Failed");
-
-                resDiv.innerHTML = `
-                    <h3>Suno Info Results:</h3>
-                    <p><strong>Page Type:</strong> ${json.page_type}</p>
-                    <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
-                    <div class="dual-container">
-                        <div class="dual-column">
-                            <h4>HTML Parser Result</h4>
-                            <pre>${JSON.stringify(json.html_parser_result, null, 2)}</pre>
-                        </div>
-                        <div class="dual-column">
-                            <h4>RSC Parser Result</h4>
-                            <pre>${JSON.stringify(json.rsc_parser_result, null, 2)}</pre>
-                        </div>
-                    </div>
-                `;
-            } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
-        }
-
         async function classifyUrlEndpoint() {
             const url = document.getElementById("urlInput").value;
             const resDiv = document.getElementById("result");
@@ -101,7 +72,7 @@
                 resDiv.innerHTML = `
                     <h3>URL Classification Result:</h3>
                     <p><strong>Original URL:</strong> ${json.original_url}</p>
-                    <p><strong>Resolved URL:</strong> ${json.resolved_url}</p>
+                    <p><strong>Resolved URL:</strong> ${json.resolved_url || json.original_url}</p>
                     <p><strong>Detected Type:</strong> <span style="color: #0070f3; font-weight: bold;">${json.url_type}</span></p>
                     <p><strong>Extracted ID:</strong> <span style="background: #eef2f6; padding: 3px 6px; border-radius: 4px; font-family: monospace;">${json.item_id || "None found"}</span></p>
                 `;
@@ -176,4 +147,3 @@
     </script>
 </body>
 </html>
-```[cite: 1]
