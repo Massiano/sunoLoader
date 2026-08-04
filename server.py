@@ -7,20 +7,20 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, static_folder='public')
-CORS(app)
+server = Flask(__name__, static_folder='public')
+CORS(server)
 
 parser = SunoSongParser()
 
-@app.route('/')
+@server.route('/')
 def index():
-    return send_from_directory(app.static_folder, 'sunoLoader.html')
+    return send_from_directory(server.static_folder, 'sunoLoader.html')
 
-@app.route('/public/<path:filename>')
+@server.route('/public/<path:filename>')
 def static_files(filename):
     return send_from_directory('public', filename)
 
-@app.route('/api/parse', methods=['POST'])
+@server.route('/api/parse', methods=['POST'])
 def parse_song():
     try:
         data = request.get_json()
@@ -36,7 +36,7 @@ def parse_song():
         logger.error(f"Error parsing song: {e}")
         return jsonify({'error': 'Server error', 'message': str(e)}), 500
 
-@app.route('/api/parse-multiple', methods=['POST'])
+@server.route('/api/parse-multiple', methods=['POST'])
 def parse_multiple_songs():
     try:
         data = request.get_json()
@@ -50,15 +50,15 @@ def parse_multiple_songs():
         logger.error(f"Error parsing multiple songs: {e}")
         return jsonify({'error': 'Server error', 'message': str(e)}), 500
 
-@app.route('/api/health', methods=['GET'])
+@server.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({'status': 'healthy', 'message': 'Suno Song Parser API is running'})
 
-@app.errorhandler(404)
+@server.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Not found', 'message': 'The requested endpoint does not exist'}), 404
 
-@app.errorhandler(500)
+@server.errorhandler(500)
 def internal_error(error):
     return jsonify({'error': 'Internal server error', 'message': 'An unexpected error occurred'}), 500
 
