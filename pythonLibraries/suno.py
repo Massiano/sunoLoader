@@ -19,6 +19,21 @@ def classify_content_heuristic(text: str) -> str:
     elif "lyrics" in lower_text or "audio_url" in lower_text or "song-content" in lower_text: return "song"
     return "unknown"
 
+def parse_suno_song_HTML(html):
+    soup = BeautifulSoup(html, "html.parser")
+    songs_data = []
+    for item in soup.find_all("li"):
+        title_elem = item.select_one(".clip-title-wrapper a")
+        title = title_elem.get_text(strip=True) if title_elem else None
+        song_id = title_elem["href"].split("/song/")[-1] if title_elem and title_elem.has_attr("href") and "/song/" in title_elem["href"] else None
+        author_elem = item.select_one("a[href^='/@']")
+        author = author_elem.get_text(strip=True) if author_elem else None
+        genre_elem = item.select_one("a[href^='/style/']")
+        genre_prompt = genre_elem.get_text(strip=True) if genre_elem else None
+        plays = next((span.get_text(strip=True) for span in item.find_all("span") if span.find("svg") and span.get_text(strip=True).isdigit()), None)
+        songs_data.append({"title": title, "author": author, "genre_or_prompt": genre_prompt, "song_id": song_id, "plays": plays})
+    return songs_data
+
 def parse_song_html(html_content: str) -> dict:
     soup = BeautifulSoup(html_content, "html.parser")
     data = {"title": None, "author": None, "lyrics": None, "body_text_sample": None, "metadata": {}}
