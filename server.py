@@ -9,6 +9,32 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 @app.route("/")
 def serve_index(): return send_from_directory(app.static_folder, "index.html")
 
+@app.route("/api/parse-song", methods=["POST"])
+def api_parse_song():
+    """Proper workhorse endpoint to parse a Suno song URL using parseSongHTML."""
+    data = request.get_json() or {}
+    target_url = data.get("url")
+    if not target_url: 
+        return jsonify({"error": "No URL provided"}), 400
+    
+    try:
+        resolved_url = resolve_share_url(target_url) if 'resolve_share_url' in globals() else target_url
+        
+        html_response = requests.get(resolved_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        html_content = html_response.text
+        
+        # Invoke the workhorse function imported from pythonLibraries.suno
+        parsed_result = parseSongHTML(html_content)
+            
+        return jsonify({
+            "status": "success",
+            "url": target_url,
+            "resolved_url": resolved_url,
+            "data": parsed_result
+        })
+    except Exception as e: 
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/diagnostics", methods=["GET"])
 def diagnostics():
     try:
