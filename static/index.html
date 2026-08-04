@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Suno & RSC Parser</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Suno & RSC Comprehensive Inspector</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; color: #333; max-width: 900px; margin: 40px auto; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input[type="text"] { width: 70%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        button { padding: 10px 20px; background: #0070f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        input[type="text"] { width: 65%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 15px; background: #0070f3; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; }
         button:hover { background: #0051a2; }
         pre { background: #1e1e1e; color: #dcdcdc; padding: 15px; border-radius: 5px; overflow-x: auto; max-height: 400px; }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; margin-right: 5px; }
         .badge-success { background: #e1ffd8; color: #00600a; }
+        .badge-info { background: #d8f3ff; color: #004b60; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Suno Share & RSC Parser</h2>
-        <p>Enter a Suno URL or Share-URL (e.g., https://suno.com/s/...):</p>
-        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <input type="text" id="urlInput" placeholder="https://suno.com/s/My0OwL2naY5TSYkD"><button onclick="fetchSuno()">Parse Content</button>
+        <h2>Suno & RSC Universal Inspector</h2>
+        <p>Enter any Suno URL or Share-URL to parse HTML metadata and RSC payloads:</p>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <input type="text" id="urlInput" placeholder="https://suno.com/s/My0OwL2naY5TSYkD">
+            <button onclick="fetchSuno()">Full Parse</button>
+            <button onclick="checkDiagnostics()" style="background: #4a5568;">Server Diagnostics</button>
         </div>
         <div id="result"></div>
     </div>
@@ -27,13 +30,29 @@
             const url = document.getElementById("urlInput").value;
             const resultDiv = document.getElementById("result");
             if (!url) return alert("Please enter a URL");
-            resultDiv.innerHTML = "<p>Resolving share-url and parsing payload...</p>";
+            resultDiv.innerHTML = "<p>Resolving, fetching, and parsing HTML + RSC payloads...</p>";
             try {
                 const response = await fetch("/process", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || "Failed to process");
-                let html = `<h3>Result:</h3><p><strong>Resolved URL:</strong> <a href="${data.resolved_url}" target="_blank">${data.resolved_url}</a></p>`;
-                html += `<p><span class="badge badge-success">Type: ${data.type}</span></p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                let html = `<h3>Comprehensive Output:</h3>`;
+                html += `<p><strong>Resolved URL:</strong> <a href="${data.resolved_url}" target="_blank">${data.resolved_url}</a></p>`;
+                html += `<p><span class="badge badge-success">Type: ${data.type}</span><span class="badge badge-info">URL Class: ${data.url_type}</span><span class="badge badge-info">Heuristic: ${data.heuristic_type}</span></p>`;
+                html += `<h4>HTML Metadata Parsing:</h4><pre>${JSON.stringify(data.html_metadata, null, 2)}</pre>`;
+                html += `<h4>RSC Payload Parsing:</h4><pre>${JSON.stringify(data.parsed_data || data.raw, null, 2)}</pre>`;
+                resultDiv.innerHTML = html;
+            } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
+        }
+
+        async function checkDiagnostics() {
+            const resultDiv = document.getElementById("result");
+            resultDiv.innerHTML = "<p>Checking server health and available functions...</p>";
+            try {
+                const response = await fetch("/diagnostics");
+                const data = await response.json();
+                let html = `<h3>Server Diagnostics:</h3>`;
+                html += `<p><span class="badge badge-success">Status: ${data.status}</span></p>`;
+                html += `<h4>Available Library Functions:</h4><pre>${JSON.stringify(data.available_functions, null, 2)}</pre>`;
                 resultDiv.innerHTML = html;
             } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
