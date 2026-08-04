@@ -16,10 +16,11 @@
 <body>
     <div class="card">
         <h2>Suno & RSC Comprehensive Inspector</h2>
-        <p>Parse HTML Header, HTML DOM (as raw string), and RSC for both songs and playlist pages:</p>
+        <p>Parse HTML Header, HTML DOM, RSC Payload, or extract Song/Playlist details using your backend utilities:</p>
         <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-            <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/...">
+            <input type="text" id="urlInput" placeholder="https://suno.com/song/... or playlist/..." />
             <button onclick="fetchComprehensive()">Fetch All 3 Data Streams</button>
+            <button onclick="testSongParser()" style="background: #8b5cf6;">Test Song HTML Parser</button>
         </div>
         <div id="result"></div>
     </div>
@@ -46,6 +47,24 @@
                     <h4>HTML Header:</h4><pre>${JSON.stringify(currentData.html_header, null, 2)}</pre>
                     <h4>HTML DOM Preview (First 500 chars):</h4><pre>${escapeHtml(currentData.html_dom.substring(0, 500))}...</pre>
                     <h4>RSC Payload Preview:</h4><pre>${JSON.stringify(currentData.rsc_payload, null, 2)}</pre>
+                `;
+            } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
+        }
+
+        async function testSongParser() {
+            const url = document.getElementById("urlInput").value;
+            const resDiv = document.getElementById("result");
+            if (!url) return alert("Please enter a URL");
+            resDiv.innerHTML = "<p>Running song/playlist utility parser...</p>";
+            try {
+                const resp = await window.fetch("/test-parser-song-html", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+                const json = await resp.json();
+                if (!resp.ok) throw new Error(json.error || "Failed");
+
+                resDiv.innerHTML = `
+                    <h3>Parsed Song/Playlist Output:</h3>
+                    <p><strong>Resolved URL:</strong> ${json.url}</p>
+                    <pre>${JSON.stringify(json.parsed_result, null, 2)}</pre>
                 `;
             } catch (err) { resDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
