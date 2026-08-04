@@ -52,34 +52,42 @@ def extract_suno_id(url):
     return None
 
 def parseSongHTML(html_string):
-  soup = BeautifulSoup(html_string, "html.parser")
+    soup = BeautifulSoup(html_string, "html.parser")
 
-  og_title = soup.find("meta", property="og:title")
-  title = og_title["content"] if og_title else None
+    og_title = soup.find("meta", property="og:title")
+    title = og_title["content"] if og_title else None
 
-  canonical_link = soup.find("link", rel="canonical")
-  song_url = canonical_link["href"] if canonical_link else None
-  song_id = song_url.split("/")[-1] if song_url else None
+    canonical_link = soup.find("link", rel="canonical")
+    song_url = canonical_link["href"] if canonical_link else None
+    song_id = song_url.split("/")[-1] if song_url else None
 
-  og_image = soup.find("meta", property="og:image")
-  cover_image = og_image["content"] if og_image else None
+    og_image = soup.find("meta", property="og:image")
+    cover_image = og_image["content"] if og_image else None
 
-  meta_desc = soup.find("meta", attrs={"name": "description"})
-  desc_text = meta_desc["content"] if meta_desc else ""
+    meta_desc = soup.find("meta", attrs={"name": "description"})
+    desc_text = meta_desc["content"] if meta_desc else ""
 
-  author_name = None
-  author_handle = None
+    author_name = None
+    author_handle = None
 
-  if desc_text:
-    match = re.search(r"by\s+(.*?)\s+\((@[\w\d_]+)\)", desc_text)
-    if match:
-      author_name = match.group(1).strip()
-      author_handle = match.group(2).strip()
+    if desc_text:
+        match = re.search(r"by\s+(.*?)\s+\((@[\w\d_]+)\)", desc_text)
+        if match:
+            author_name = match.group(1).strip()
+            author_handle = match.group(2).strip()
 
-  page_title = soup.find("title")
-  page_title_text = page_title.text.strip() if page_title else None
+    page_title = soup.find("title")
+    page_title_text = page_title.text.strip() if page_title else None
 
-  return {      "title": title,      "author": author_name,      "author_handle": author_handle,      "song_id": song_id,      "song_url": song_url,      "cover_image": cover_image,      "page_title": page_title_text,  }
+    return {
+        "title": title,
+        "author": author_name,
+        "author_handle": author_handle,
+        "song_id": song_id,
+        "song_url": song_url,
+        "cover_image": cover_image,
+        "page_title": page_title_text,
+    }
 
 def parse_suno_clip_from_rsc(rsc_payload_string):
     try:
@@ -94,11 +102,30 @@ def parse_suno_clip_from_rsc(rsc_payload_string):
                     
                     if clip and 'id' in clip:
                         result = {
-                            "id": clip.get("id"),"title": clip.get("title"),"duration": clip.get("duration"),"caption": clip.get("metadata", {}).get("prompt") or clip.get("caption"),
-                            "tags": clip.get("metadata", {}).get("tags"),"modelName": clip.get("model_name"),"isExplicit": clip.get("is_explicit"),"createdAt": clip.get("created_at"),
-                            "artist": {"displayName": clip.get("display_name"),"handle": clip.get("handle"),"userId": clip.get("user_id"),"avatarUrl": clip.get("image_url")},
-                            "assets": {"audioUrl": clip.get("audio_url"),"videoUrl": clip.get("video_url"),"imageUrl": clip.get("image_url") },
-                            "stats": { "playCount": clip.get("play_count"), "upvoteCount": clip.get("upvote_count"), "commentCount": clip.get("comment_count") }
+                            "id": clip.get("id"),
+                            "title": clip.get("title"),
+                            "duration": clip.get("duration"),
+                            "caption": clip.get("metadata", {}).get("prompt") or clip.get("caption"),
+                            "tags": clip.get("metadata", {}).get("tags"),
+                            "modelName": clip.get("model_name"),
+                            "isExplicit": clip.get("is_explicit"),
+                            "createdAt": clip.get("created_at"),
+                            "artist": {
+                                "displayName": clip.get("display_name"),
+                                "handle": clip.get("handle"),
+                                "userId": clip.get("user_id"),
+                                "avatarUrl": clip.get("image_url")
+                            },
+                            "assets": {
+                                "audioUrl": clip.get("audio_url"),
+                                "videoUrl": clip.get("video_url"),
+                                "imageUrl": clip.get("image_url")
+                            },
+                            "stats": {
+                                "playCount": clip.get("play_count"),
+                                "upvoteCount": clip.get("upvote_count"),
+                                "commentCount": clip.get("comment_count")
+                            }
                         }
                         return json.dumps(result, separators=(',', ':'))
         
@@ -112,8 +139,36 @@ def parse_suno_clip_from_rsc(rsc_payload_string):
         print(f"Failed to parse RSC payload for clip info: {error}")
         return None
 
-def parsePlaylistHTML( string ):
-    return
+def parsePlaylistHTML(html_string):
+    soup = BeautifulSoup(html_string, "html.parser")
+    og_title = soup.find("meta", property="og:title")
+    title = og_title["content"] if og_title else None
+    
+    og_description = soup.find("meta", property="og:description")
+    description = og_description["content"] if og_description else None
 
-def parsePlaylistRSC ( string ):
-    return
+    canonical_link = soup.find("link", rel="canonical")
+    playlist_url = canonical_link["href"] if canonical_link else None
+    playlist_id = playlist_url.split("/")[-1] if playlist_url else None
+
+    return {
+        "playlist_title": title,
+        "description": description,
+        "playlist_id": playlist_id,
+        "playlist_url": playlist_url
+    }
+
+def parsePlaylistRSC(rsc_payload_string):
+    try:
+        lines = rsc_payload_string.split('\n')
+        for line in lines:
+            if '"playlist":' in line or '"tracks":' in line:
+                json_start_index = line.find('{')
+                if json_start_index != -1:
+                    json_str = line[json_start_index:]
+                    parsed_data = json.loads(json_str)
+                    return json.dumps(parsed_data, separators=(',', ':'))
+        return None
+    except Exception as error:
+        print(f"Failed to parse playlist RSC payload: {error}")
+        return None
