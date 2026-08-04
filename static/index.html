@@ -1,44 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RSC Blob Parser</title>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Suno & RSC Parser</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
         input[type="text"] { width: 70%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
         button { padding: 10px 20px; background: #0070f3; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background: #0051a2; }
         pre { background: #1e1e1e; color: #dcdcdc; padding: 15px; border-radius: 5px; overflow-x: auto; max-height: 400px; }
         .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85em; }
         .badge-success { background: #e1ffd8; color: #00600a; }
-        .badge-warning { background: #fff8d8; color: #605000; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>React Server Components (RSC) Parser</h2>
-        <p>Enter a URL that serves an RSC payload to fetch and parse it:</p>
+        <h2>Suno Share & RSC Parser</h2>
+        <p>Enter a Suno URL or Share-URL (e.g., https://suno.com/s/...):</p>
         <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-            <input type="text" id="urlInput" placeholder="https://example.com/page"><button onclick="fetchRSC()">Fetch & Parse</button>
+            <input type="text" id="urlInput" placeholder="https://suno.com/s/My0OwL2naY5TSYkD"><button onclick="fetchSuno()">Parse Content</button>
         </div>
         <div id="result"></div>
     </div>
     <script>
-        async function fetchRSC() {
+        async function fetchSuno() {
             const url = document.getElementById("urlInput").value;
             const resultDiv = document.getElementById("result");
             if (!url) return alert("Please enter a URL");
-            resultDiv.innerHTML = "<p>Loading and analyzing...</p>";
+            resultDiv.innerHTML = "<p>Resolving share-url and parsing payload...</p>";
             try {
                 const response = await fetch("/process", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || "Failed to process");
-                let html = `<h3>Result:</h3>`;
-                if (data.is_rsc) {
-                    html += `<p><span class="badge badge-success">RSC Detected (${data.source})</span> ${data.message}</p><pre>${JSON.stringify(data.chunks, null, 2)}</pre>`;
-                } else {
-                    html += `<p><span class="badge badge-warning">No RSC Blob</span> ${data.message}</p><pre>${data.raw_preview}</pre>`;
-                }
+                let html = `<h3>Result:</h3><p><strong>Resolved URL:</strong> <a href="${data.resolved_url}" target="_blank">${data.resolved_url}</a></p>`;
+                html += `<p><span class="badge badge-success">Type: ${data.type}</span></p><pre>${JSON.stringify(data, null, 2)}</pre>`;
                 resultDiv.innerHTML = html;
             } catch (err) { resultDiv.innerHTML = `<p style="color: red;">Error: ${err.message}</p>`; }
         }
