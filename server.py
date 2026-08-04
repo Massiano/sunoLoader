@@ -1,68 +1,73 @@
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
-from sunoParser import SunoSongParser
-import os
-import logging
+import json
+import re
+from flask import Flask, send_from_directory, request, jsonify
+import requests
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="")
 
-server = Flask(__name__, static_folder='public')
-CORS(server)
+def parse_rsc_payload(text):
+    """
+    Basic parser for React Server Components (RSC) payload.
+    """
+    lines = text.split("\n")
+    parsed_chunks = []
+    rsc_pattern = re.compile(r"^([0-9a-f]+):(.*)$")
+    
+    for line in lines:
+        match = rsc_pattern.match(line.strip())
+        if match:
+            chunk_id, content = match.groups()
+            try:
+                parsed_content = json.loads(content)
+            except json.JSONDecodeError:
+                parsed_content = content
+                
+            parsed_chunks.append({
+                "id": chunk_id,
+                "content": parsed_content
+            })
+            
+    return parsed_chunks
 
-parser = SunoSongParser()
+@app.route("/")
+def serve_index():
+    return send_from_directory(app.static_folder, "index.html")
 
-@server.route('/')
-def index():
-    return send_from_directory(server.static_folder, 'sunoLoader.html')
-
-@server.route('/public/<path:filename>')
-def static_files(filename):
-    return send_from_directory('public', filename)
-
-@server.route('/api/parse', methods=['POST'])
-def parse_song():
+@app.route("/process", methods=["POST"])
+def process_url():
+    data = request.get_json()
+    target_url = data.get("url")
+    
+    if not target_url:
+        return jsonify({"error": "No URL provided"}), 400
+        
     try:
-        data = request.get_json()
-        if not data or 'url' not in data:
-            return jsonify({'error': 'Missing URL', 'message': 'Please provide a "url" field in the request body'}), 400
-        url = data['url'].strip()
-        logger.info(f"Parsing URL via HTML and RSC: {url}")
-        result = parser.parse_song_url(url)
-        if result:
-            return jsonify({'success': True, 'data': result})
-        return jsonify({'error': 'Parse failed', 'message': 'Could not parse the song URL using HTML or RSC. Please check if the URL is valid.'}), 404
+        headers = {"RSC": "1"}
+        response = requests.get(target_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        content = response.text
+        is_rsc = "text/x-component" in response.headers.get("Content-Type", "") or bool(re.search(r"^[0-9a-f]+:", content, re.MULTILINE))
+        
+        if not is_rsc:
+            return jsonify({
+                "success": True,
+                "is_rsc": False,
+                "message": "Fetched successfully, but no RSC blob signature was detected.",
+                "raw_preview": content[:500]
+            })
+            
+        parsed_data = parse_rsc_payload(content)
+        
+        return jsonify({
+            "success": True,
+            "is_rsc": True,
+            "message": "RSC blob successfully detected and parsed!",
+            "chunks": parsed_data
+        })
+        
     except Exception as e:
-        logger.error(f"Error parsing song: {e}")
-        return jsonify({'error': 'Server error', 'message': str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
-@server.route('/api/parse-multiple', methods=['POST'])
-def parse_multiple_songs():
-    try:
-        data = request.get_json()
-        if not data or 'urls' not in data or not isinstance(data['urls'], list):
-            return jsonify({'error': 'Invalid URLs', 'message': 'Please provide a "urls" array in the request body'}), 400
-        urls = data['urls']
-        logger.info(f"Parsing {len(urls)} URLs")
-        results = [r for url in urls if (r := parser.parse_song_url(url.strip()))]
-        return jsonify({'success': True, 'data': results, 'total': len(results), 'requested': len(urls)})
-    except Exception as e:
-        logger.error(f"Error parsing multiple songs: {e}")
-        return jsonify({'error': 'Server error', 'message': str(e)}), 500
-
-@server.route('/api/health', methods=['GET'])
-def health_check():
-    return jsonify({'status': 'healthy', 'message': 'Suno Song Parser API is running'})
-
-@server.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Not found', 'message': 'The requested endpoint does not exist'}), 404
-
-@server.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Internal server error', 'message': 'An unexpected error occurred'}), 500
-
-if __name__ == '__main__':
-    os.makedirs('public', exist_ok=True)
-    port = int(os.environ.get('PORT', 5000))
-    server.run(host='0.0.0.0', port=port, debug=False)
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
