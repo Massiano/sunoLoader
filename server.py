@@ -2,7 +2,7 @@ import os
 import requests
 from flask import Flask, send_from_directory, request, jsonify
 from pythonLibraries.rsc import fetch_and_parse_rsc
-from pythonLibraries.suno import resolve_share_url, parse_suno_payload
+from pythonLibraries.suno import resolve_share_url, parse_suno_payload, classify_url
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
@@ -30,7 +30,9 @@ def resolve_url_endpoint():
     data = request.get_json() or {}
     share_url = data.get("url")
     if not share_url: return jsonify({"error": "No URL provided"}), 400
-    try: return jsonify({"resolved_url": resolve_share_url(share_url)})
+    try:
+        resolved = resolve_share_url(share_url)
+        return jsonify({"resolved_url": resolved, "classification": classify_url(resolved)})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
