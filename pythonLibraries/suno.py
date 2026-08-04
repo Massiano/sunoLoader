@@ -4,8 +4,53 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
 def classify_suno_url(url):
-    return 'unknown'
+    if not url or not isinstance(url, str):
+        return 'unknown'
     
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    
+    if 'suno.com' not in host and 'suno.ai' not in host:
+        return 'unknown'
+    
+    path = parsed.path.strip('/')
+    
+    if path.startswith('@'):
+        return 'share'
+    if path.startswith('playlist/'):
+        return 'playlist'
+    if path.startswith('song/'):
+        return 'song'
+    if path.startswith('s/'):
+        return 'short_link'
+    if path == 'create':
+        return 'create'
+    if path == 'me':
+        return 'library'
+    if path == 'explore':
+        return 'explore'
+    if path == 'search':
+        return 'search'
+    
+    return 'unknown'
+
+def extract_suno_id(url):
+    if not url or not isinstance(url, str):
+        return None
+    
+    path = urlparse(url).path.strip('/')
+    
+    if path.startswith('song/'):
+        return path[5:].split('/')[0]
+    if path.startswith('playlist/'):
+        return path[9:].split('/')[0]
+    if path.startswith('s/'):
+        return path[2:].split('/')[0]
+    if path.startswith('@'):
+        return path[1:].split('/')[0]
+    
+    return None
+
 def parseSongHTML(html_string):
   soup = BeautifulSoup(html_string, "html.parser")
 
