@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suno Song Loader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+
+        .subtitle {
+            color: #888;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .input-section input {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .input-section input:focus {
+            outline: none;
+            border-color: #6c63ff;
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+        }
+
+        .input-section button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            background: #6c63ff;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .input-section button:hover {
+            background: #5a52d5;
+            transform: translateY(-1px);
+        }
+
+        .input-section button:active {
+            transform: translateY(0);
+        }
+
+        .input-section button.secondary {
+            background: #333;
+        }
+
+        .input-section button.secondary:hover {
+            background: #444;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.loading {
+            display: block;
+            background: #1a2a3a;
+            color: #8ab4f8;
+            border: 1px solid #2a4a6a;
+        }
+
+        .status.success {
+            display: block;
+            background: #1a2a1a;
+            color: #81c784;
+            border: 1px solid #2a4a2a;
+        }
+
+        .status.error {
+            display: block;
+            background: #2a1a1a;
+            color: #e57373;
+            border: 1px solid #4a2a2a;
+        }
+
+        .result-section {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .result-section.visible {
+            display: block;
+        }
+
+        .song-info {
+            background: #0a0a0a;
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 16px;
+            border: 1px solid #2a2a2a;
+        }
+
+        .song-info .header {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .song-info .thumbnail {
+            width: 150px;
+            height: 150px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #2a2a2a;
+            flex-shrink: 0;
+        }
+
+        .song-info .details {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .song-info .details h2 {
+            font-size: 22px;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+
+        .song-info .details .artist {
+            font-size: 16px;
+            color: #8ab4f8;
+            margin-bottom: 12px;
+            cursor: pointer;
+        }
+
+        .song-info .details .artist:hover {
+            text-decoration: underline;
+        }
+
+        .song-info .details .meta {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: #888;
+        }
+
+        .song-info .details .meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .song-info .details .style {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #aaa;
+            border: 1px solid #2a2a2a;
+        }
+
+        .song-info .audio-player {
+            margin-top: 16px;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .song-info .audio-player audio {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .song-info .lyrics {
+            margin-top: 16px;
+            padding: 16px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            border: 1px solid #2a2a2a;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            color: #ccc;
+        }
+
+        .song-info .lyrics:empty {
+            display: none;
+        }
+
+        .json-output {
+            margin-top: 16px;
+            padding: 16px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            border: 1px solid #2a2a2a;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 13px;
+            color: #0f0;
+            white-space: pre-wrap;
+        }
+
+        .batch-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #2a2a2a;
+        }
+
+        .batch-section textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            font-size: 14px;
+            font-family: monospace;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+
+        .batch-section textarea:focus {
+            outline: none;
+            border-color: #6c63ff;
+        }
+
+        .batch-results {
+            margin-top: 12px;
+        }
+
+        .batch-result-item {
+            background: #0a0a0a;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border: 1px solid #2a2a2a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .batch-result-item .info {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .batch-result-item .info .title {
+            color: #fff;
+            font-weight: 500;
+        }
+
+        .batch-result-item .info .artist {
+            color: #8ab4f8;
+            font-size: 14px;
+        }
+
+        .batch-result-item .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .batch-result-item .status-badge.success {
+            background: #1a3a1a;
+            color: #81c784;
+        }
+
+        .batch-result-item .status-badge.error {
+            background: #3a1a1a;
+            color: #e57373;
+        }
+
+        .copy-button {
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-button:hover {
+            background: #2a2a2a;
+            color: #fff;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .input-section {
+                flex-direction: column;
+            }
+
+            .input-section button {
+                width: 100%;
+            }
+
+            .song-info .header {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .song-info .details .meta {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Suno Song Loader</h1>
+        <p class="subtitle">Paste a Suno song URL to extract its information</p>
+
+        <div class="input-section">
+            <input type="text" id="songUrl" placeholder="https://suno.com/song/..." />
+            <button onclick="loadSong()">Load Song</button>
+            <button class="secondary" onclick="clearAll()">Clear</button>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div class="batch-section">
+            <details>
+                <summary style="cursor: pointer; color: #8ab4f8; font-weight: 500; margin-bottom: 8px;">
+                    📋 Load Multiple Songs
+                </summary>
+                <textarea id="batchUrls" placeholder="https://suno.com/song/...&#10;https://suno.com/song/...&#10;..."></textarea>
+                <button onclick="loadMultipleSongs()" style="padding: 8px 16px; border-radius: 8px; border: none; background: #6c63ff; color: white; cursor: pointer;">
+                    Load All
+                </button>
+                <div id="batchResults" class="batch-results"></div>
+            </details>
+        </div>
+
+        <div id="resultSection" class="result-section">
+            <div id="songInfo" class="song-info"></div>
+            <div id="jsonOutput" class="json-output"></div>
+        </div>
+    </div>
+
+    <script>
+        async function loadSong() {
+            const url = document.getElementById('songUrl').value.trim();
+            if (!url) {
+                showStatus('Please enter a Suno song URL.', 'error');
+                return;
+            }
+
+            if (!url.includes('suno.com/song/')) {
+                showStatus('Please enter a valid Suno song URL.', 'error');
+                return;
+            }
+
+            showStatus('Loading song information...', 'loading');
+            document.getElementById('resultSection').classList.remove('visible');
+
+            try {
+                const response = await fetch('/api/parse', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('Song loaded successfully!', 'success');
+                    displaySong(data.data);
+                } else {
+                    showStatus(`Error: ${data.message || 'Failed to load song'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function displaySong(song) {
+            const container = document.getElementById('songInfo');
+            const jsonContainer = document.getElementById('jsonOutput');
+
+            let lyricsHtml = '';
+            if (song.lyrics) {
+                lyricsHtml = `<div class="lyrics">${song.lyrics}</div>`;
+            }
+
+            let styleHtml = '';
+            if (song.style) {
+                styleHtml = `<div class="style">🎵 ${song.style}</div>`;
+            }
+
+            container.innerHTML = `
+                <div class="header">
+                    ${song.image_url ? `<img class="thumbnail" src="${song.image_url}" alt="${song.title}" onerror="this.style.display='none'" />` : ''}
+                    <div class="details">
+                        <h2>${song.title || 'Untitled'}</h2>
+                        ${song.artist.handle ? `<div class="artist" onclick="window.open('${song.artist.profile_url}', '_blank')">@${song.artist.handle}${song.artist.display_name ? ` (${song.artist.display_name})` : ''}</div>` : ''}
+                        <div class="meta">
+                            ${song.duration ? `<span>⏱️ ${song.duration}</span>` : ''}
+                            ${song.play_count ? `<span>▶️ ${song.play_count.toLocaleString()} plays</span>` : ''}
+                            ${song.like_count ? `<span>❤️ ${song.like_count.toLocaleString()} likes</span>` : ''}
+                            ${song.model_version ? `<span>🤖 ${song.model_version}</span>` : ''}
+                            ${song.is_public !== undefined ? `<span>${song.is_public ? '🌐 Public' : '🔒 Private'}</span>` : ''}
+                        </div>
+                        ${styleHtml}
+                        ${song.audio_url ? `
+                            <div class="audio-player">
+                                <audio controls>
+                                    <source src="${song.audio_url}" type="audio/mpeg">
+                                    Your browser does not support the audio element.
+                                </audio>
+                            </div>
+                        ` : ''}
+                        ${lyricsHtml}
+                    </div>
+                </div>
+            `;
+
+            // Display JSON
+            const jsonData = JSON.stringify(song, null, 2);
+            jsonContainer.textContent = jsonData;
+
+            // Show result section
+            document.getElementById('resultSection').classList.add('visible');
+
+            // Add copy button for JSON
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-button';
+            copyBtn.textContent = '📋 Copy JSON';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(jsonData).then(() => {
+                    copyBtn.textContent = '✅ Copied!';
+                    setTimeout(() => copyBtn.textContent = '📋 Copy JSON', 2000);
+                });
+            };
+            jsonContainer.parentNode.insertBefore(copyBtn, jsonContainer.nextSibling);
+        }
+
+        async function loadMultipleSongs() {
+            const urlsText = document.getElementById('batchUrls').value.trim();
+            if (!urlsText) {
+                showStatus('Please enter at least one URL.', 'error');
+                return;
+            }
+
+            const urls = urlsText.split('\n')
+                .map(u => u.trim())
+                .filter(u => u && u.includes('suno.com/song/'));
+
+            if (urls.length === 0) {
+                showStatus('No valid Suno song URLs found.', 'error');
+                return;
+            }
+
+            showStatus(`Loading ${urls.length} songs...`, 'loading');
+
+            try {
+                const response = await fetch('/api/parse-multiple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ urls: urls })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus(`Successfully loaded ${data.total} of ${data.requested} songs.`, 'success');
+                    displayBatchResults(data.data);
+                } else {
+                    showStatus(`Error: ${data.message || 'Failed to load songs'}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function displayBatchResults(songs) {
+            const container = document.getElementById('batchResults');
+            
+            let html = '<div style="margin-top: 12px; font-weight: 500; color: #fff;">Results:</div>';
+            
+            songs.forEach(song => {
+                html += `
+                    <div class="batch-result-item">
+                        <div class="info">
+                            <div class="title">${song.title || 'Untitled'}</div>
+                            <div class="artist">@${song.artist.handle || 'unknown'}</div>
+                        </div>
+                        <div>
+                            <span class="status-badge success">✅ Loaded</span>
+                            <button class="copy-button" onclick="copySongInfo('${song.id}')">📋 Copy</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Store songs for copy functionality
+            window._batchSongs = songs;
+        }
+
+        function copySongInfo(songId) {
+            const song = window._batchSongs.find(s => s.id === songId);
+            if (song) {
+                const text = `${song.title} by ${song.artist.display_name || song.artist.handle}\n${song.audio_url || ''}`;
+                navigator.clipboard.writeText(text).then(() => {
+                    showStatus('Copied to clipboard!', 'success');
+                });
+            }
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+            statusEl.style.display = 'block';
+        }
+
+        function clearAll() {
+            document.getElementById('songUrl').value = '';
+            document.getElementById('batchUrls').value = '';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('resultSection').classList.remove('visible');
+            document.getElementById('batchResults').innerHTML = '';
+        }
+
+        // Allow Enter key to trigger load
+        document.getElementById('songUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                loadSong();
+            }
+        });
+
+        // Example URL for testing
+        window.addEventListener('load', () => {
+            document.getElementById('songUrl').value = 'https://suno.com/song/0f4a755e-63ee-49ef-8f7c-af0500ed4577';
+        });
+    </script>
+</body>
+</html>
