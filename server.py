@@ -32,6 +32,16 @@ def process_url():
         return jsonify(parse_suno_payload(rsc_result, html_content, resolved_url))
     except Exception as e: return jsonify({"error": str(e)}), 500
 
+@app.route("/api/parse-comprehensive", methods=["POST"])
+def api_parse_comprehensive():
+    data = request.get_json() or {}
+    url = data.get("url")
+    if not url: return jsonify({"error": "No URL provided"}), 400
+    try:
+        result = process_suno_comprehensive(url)
+        return jsonify(result)
+    except Exception as e: return jsonify({"error": str(e)}), 500
+        
 @app.route("/test-parser-song-html", methods=["POST"])
 def test_parser_song_html():
     data = request.get_json() or {}
