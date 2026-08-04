@@ -140,23 +140,41 @@ def parse_suno_clip_from_rsc(rsc_payload_string):
         return None
 
 def parsePlaylistHTML(html_string):
-    soup = BeautifulSoup(html_string, "html.parser")
-    og_title = soup.find("meta", property="og:title")
-    title = og_title["content"] if og_title else None
-    
-    og_description = soup.find("meta", property="og:description")
-    description = og_description["content"] if og_description else None
+  soup = BeautifulSoup(html_string, "html.parser")
+  songs = []
 
-    canonical_link = soup.find("link", rel="canonical")
-    playlist_url = canonical_link["href"] if canonical_link else None
-    playlist_id = playlist_url.split("/")[-1] if playlist_url else None
+  for li in soup.find_all("li"):
+    song_data = {}
+    title_link = li.select_one(".clip-title-wrapper a")
+    if title_link:
+      song_data["title"] = title_link.get_text(strip=True)
+      href = title_link.get("href", "")
+      song_data["song_id"] = ( href.split("/song/")[-1] if "/song/" in href else None )
 
-    return {
-        "playlist_title": title,
-        "description": description,
-        "playlist_id": playlist_id,
-        "playlist_url": playlist_url
-    }
+    author_link = li.select_one('a[href^="/@"]')
+    if author_link:
+      song_data["author"] = author_link.get_text(strip=True)
+      song_data["author_handle"] = author_link.get("href", "").lstrip("/")
+
+    badges = li.select(".css-1x91dev, .css-6mo0yv")
+    song_data["tags"] = [b.get_text(strip=True) for b in badges]
+
+    play_count_span = li.select_one( "span.inline-flex.shrink-0.cursor-default.items-center" )
+    if play_count_span:
+      song_data["plays"] = play_count_span.get_text(strip=True)
+
+    style_link = li.select_one('a[href^="/style/"]')
+    if style_link:
+      song_data["style"] = style_link.get_text(strip=True)
+
+    metadata_divs = li.select( ".shrink-0.justify-end .text-sm.font-medium.text-foreground-tertiary" )
+    if len(metadata_divs) >= 2:
+      song_data["duration"] = metadata_divs[0].get_text(strip=True)
+      song_data["date"] = metadata_divs[1].get_text(strip=True)
+
+    songs.append(song_data)
+
+  return songs
 
 def parsePlaylistRSC(rsc_payload_string):
     try:
