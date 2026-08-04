@@ -1,6 +1,6 @@
 import os
 from flask import Flask, send_from_directory, request, jsonify
-from rsc_utils import fetch_and_parse_rsc
+from pythonLibraries.rscUtilities import fetch_and_parse_rsc
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
