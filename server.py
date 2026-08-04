@@ -2,12 +2,19 @@ import os
 import requests
 from flask import Flask, send_from_directory, request, jsonify
 from pythonLibraries.rsc import fetch_and_parse_rsc
-from pythonLibraries.suno import resolve_share_url, parse_suno_payload, classify_url
+from pythonLibraries.suno import resolve_share_url, parse_suno_payload, run_diagnostics_suite
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
 @app.route("/")
 def serve_index(): return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/diagnostics", methods=["GET"])
+def diagnostics():
+    try:
+        return jsonify(run_diagnostics_suite())
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/process", methods=["POST"])
 def process_url():
@@ -23,16 +30,6 @@ def process_url():
             html_content = html_response.text
         except Exception: pass
         return jsonify(parse_suno_payload(rsc_result, html_content, resolved_url))
-    except Exception as e: return jsonify({"error": str(e)}), 500
-
-@app.route("/resolve", methods=["POST"])
-def resolve_url_endpoint():
-    data = request.get_json() or {}
-    share_url = data.get("url")
-    if not share_url: return jsonify({"error": "No URL provided"}), 400
-    try:
-        resolved = resolve_share_url(share_url)
-        return jsonify({"resolved_url": resolved, "classification": classify_url(resolved)})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
