@@ -7,124 +7,122 @@ from urllib.parse import urlparse
 class SunoSongParser:
     def __init__(self):
         self.session = requests.Session()
-        self.session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.5', 'Accept-Encoding': 'gzip, deflate, br', 'Connection': 'keep-alive', 'Upgrade-Insecure-Requests': '1', 'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate', 'Sec-Fetch-Site': 'none', 'Sec-Fetch-User': '?1', 'Cache-Control': 'max-age=0'})
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive',
+            'Cache-Control': 'max-age=0'
+        })
 
     def parse_song_url(self, url: str) -> Optional[Dict]:
         song_id = self.extract_song_id(url)
         if not song_id:
             return None
+        
+        # Attempt both HTML and RSC strategies
+        html_result = self._parse_as_html(url, song_id)
+        rsc_result = self._parse_as_rsc(url, song_id)
+
+        return {
+            'id': song_id,
+            'url': url,
+            'html_parsed': html_result is not None,
+            'rsc_parsed': rsc_result is not None,
+            'results': {
+                'html': html_result,
+                'rsc': rsc_result
+            }
+        }
+
+    def _parse_as_html(self, url: str, song_id: str) -> Optional[Dict]:
         try:
             response = self.session.get(url, timeout=10)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
-            return self.parse_song_page(soup, song_id, url)
-        except requests.RequestException as e:
-            print(f"Error fetching URL: {e}")
+            song_info = self._get_empty_schema(song_id, url, parse_type="HTML")
+            
+            title_meta = soup.find('meta', {'property': 'og:title'})
+            if title_meta:
+                song_info['title'] = re.sub(r'\s*\|\s*Suno$', '', title_meta.get('content', ''))
+            
+            for prop in ['audio', 'image', 'description']:
+                meta = soup.find('meta', {'property': f'og:{prop}'})
+                if meta:
+                    key = 'audio_url' if prop == 'audio' else ('image_url' if prop == 'image' else 'description')
+                    song_info[key] = meta.get('content', '')
+
+            artist_section = soup.find('a', href=re.compile(r'^/@'))
+            if artist_section:
+                href = artist_section.get('href', '')
+                song_info['artist']['handle'] = href.replace('/@', '').split('?')[0]
+                song_info['artist']['display_name'] = artist_section.text.strip()
+                song_info['artist']['profile_url'] = f"https://suno.com{href}"
+
+            for script in soup.find_all('script'):
+                if script.string and ('songId' in script.string or 'clipId' in script.string):
+                    self._extract_data_from_text(script.string, song_info)
+
+            return song_info
+        except Exception as e:
+            return None
+
+    def _parse_as_rsc(self, url: str, song_id: str) -> Optional[Dict]:
+        try:
+            headers = {'RSC': '1', 'Accept': 'text/x-component'}
+            response = self.session.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            content = response.text
+            
+            song_info = self._get_empty_schema(song_id, url, parse_type="RSC")
+            if 'songId' in content or 'clipId' in content or 'playCount' in content:
+                self._extract_data_from_text(content, song_info)
+                return song_info
             return None
         except Exception as e:
-            print(f"Error parsing page: {e}")
             return None
 
-    def parse_song_page(self, soup: BeautifulSoup, song_id: str, url: str) -> Dict:
-        song_info = {'id': song_id, 'url': url, 'title': '', 'artist': {'display_name': '', 'handle': '', 'profile_url': ''}, 'audio_url': '', 'image_url': '', 'duration': '', 'duration_seconds': 0, 'play_count': 0, 'like_count': 0, 'style': '', 'tags': [], 'description': '', 'lyrics': '', 'model_version': '', 'is_public': True, 'created_at': '', 'raw_data': {}}
-        title_meta = soup.find('meta', {'property': 'og:title'})
-        if title_meta:
-            title = title_meta.get('content', '')
-            song_info['title'] = re.sub(r'\s*\|\s*Suno$', '', title)
-        audio_meta = soup.find('meta', {'property': 'og:audio'})
-        if audio_meta:
-            song_info['audio_url'] = audio_meta.get('content', '')
-        image_meta = soup.find('meta', {'property': 'og:image'})
-        if image_meta:
-            song_info['image_url'] = image_meta.get('content', '')
-        desc_meta = soup.find('meta', {'property': 'og:description'})
-        if desc_meta:
-            song_info['description'] = desc_meta.get('content', '')
-        artist_section = soup.find('a', href=re.compile(r'^/@'))
-        if artist_section:
-            href = artist_section.get('href', '')
-            song_info['artist']['handle'] = href.replace('/@', '').split('?')[0]
-            song_info['artist']['display_name'] = artist_section.text.strip()
-            song_info['artist']['profile_url'] = f"https://suno.com{href}"
-        scripts = soup.find_all('script')
-        for script in scripts:
-            if script.string:
-                content = script.string
-                if 'songId' in content or 'clipId' in content:
-                    self.extract_data_from_script(content, song_info)
-        self.extract_visible_data(soup, song_info)
-        return song_info
+    def _get_empty_schema(self, song_id: str, url: str, parse_type: str) -> Dict:
+        return {
+            'parse_type': parse_type,
+            'id': song_id, 'url': url, 'title': '',
+            'artist': {'display_name': '', 'handle': '', 'profile_url': ''},
+            'audio_url': '', 'image_url': '', 'duration': '', 'duration_seconds': 0,
+            'play_count': 0, 'like_count': 0, 'style': '', 'tags': [],
+            'description': '', 'lyrics': '', 'model_version': '', 'is_public': True,
+            'created_at': ''
+        }
 
-    def extract_data_from_script(self, content: str, song_info: Dict):
-        patterns = {'play_count': r'"playCount":\s*(\d+)', 'like_count': r'"likeCount":\s*(\d+)', 'duration_seconds': r'"duration":\s*(\d+)', 'model_version': r'"modelVersion":\s*"([^"]+)"', 'created_at': r'"createdAt":\s*"([^"]+)"', 'is_public': r'"isPublic":\s*(true|false)', 'tags': r'"tags":\s*\[([^\]]+)\]', 'style': r'"style":\s*"([^"]+)"', 'lyrics': r'"lyrics":\s*"([^"]+)"'}
+    def _extract_data_from_text(self, content: str, song_info: Dict):
+        patterns = {
+            'play_count': r'"playCount":\s*(\d+)', 'like_count': r'"likeCount":\s*(\d+)',
+            'duration_seconds': r'"duration":\s*(\d+)', 'model_version': r'"modelVersion":\s*"([^"]+)"',
+            'created_at': r'"createdAt":\s*"([^"]+)"', 'is_public': r'"isPublic":\s*(true|false)',
+            'tags': r'"tags":\s*\[([^\]]+)\]', 'style': r'"style":\s*"([^"]+)"', 'lyrics': r'"lyrics":\s*"([^"]+)"'
+        }
         for key, pattern in patterns.items():
             match = re.search(pattern, content)
             if match:
                 if key in ('play_count', 'like_count', 'duration_seconds'):
-                    value = int(match.group(1))
+                    val = int(match.group(1))
                     if key == 'duration_seconds':
-                        song_info['duration_seconds'] = value
-                        minutes = value // 60
-                        seconds = value % 60
-                        song_info['duration'] = f"{minutes}:{seconds:02d}"
-                    elif key == 'play_count':
-                        song_info['play_count'] = value
-                    elif key == 'like_count':
-                        song_info['like_count'] = value
+                        song_info['duration_seconds'] = val
+                        song_info['duration'] = f"{val // 60}:{val % 60:02d}"
+                    elif key == 'play_count': song_info['play_count'] = val
+                    elif key == 'like_count': song_info['like_count'] = val
                 elif key == 'is_public':
                     song_info['is_public'] = match.group(1) == 'true'
                 elif key == 'tags':
-                    tags_str = match.group(1)
-                    tags = re.findall(r'"([^"]+)"', tags_str)
-                    song_info['tags'] = tags
+                    song_info['tags'] = re.findall(r'"([^"]+)"', match.group(1))
                 elif key == 'lyrics':
-                    lyrics = match.group(1)
-                    lyrics = lyrics.replace('\\n', '\n').replace('\\"', '"')
-                    song_info['lyrics'] = lyrics
+                    song_info['lyrics'] = match.group(1).replace('\\n', '\n').replace('\\"', '"')
                 else:
                     song_info[key] = match.group(1)
 
-    def extract_visible_data(self, soup: BeautifulSoup, song_info: Dict):
-        duration_el = soup.find('span', class_=re.compile(r'text.*?duration'))
-        if duration_el:
-            song_info['duration'] = duration_el.text.strip()
-        play_el = soup.find(text=re.compile(r'\d+ plays?'))
-        if play_el:
-            match = re.search(r'(\d+)\s+plays?', play_el)
-            if match:
-                song_info['play_count'] = int(match.group(1))
-
     def extract_song_id(self, url: str) -> Optional[str]:
         parsed = urlparse(url)
-        path = parsed.path
-        match = re.search(r'/song/([a-f0-9-]+)', path)
+        match = re.search(r'/song/([a-f0-9-]+)', parsed.path)
         return match.group(1) if match else None
 
-    def parse_multiple(self, urls: List[str]) -> List[Dict]:
-        results = []
-        for url in urls:
-            song_info = self.parse_song_url(url)
-            if song_info:
-                results.append(song_info)
-        return results
-
-    def get_audio_download_url(self, song_id: str) -> Optional[str]:
-        return f"https://cdn1.suno.ai/{song_id}.mp3"
-
-    def get_image_download_url(self, song_id: str) -> Optional[str]:
-        return f"https://cdn2.suno.ai/{song_id}.jpeg"
-
 def parse_suno_song(url: str) -> Optional[Dict]:
-    parser = SunoSongParser()
-    return parser.parse_song_url(url)
-
-if __name__ == "__main__":
-    test_url = "https://suno.com/song/0f4a755e-63ee-49ef-8f7c-af0500ed4577"
-    result = parse_suno_song(test_url)
-    if result:
-        print("Successfully parsed song:")
-        print(f"Title: {result['title']}")
-        print(f"Artist: {result['artist']['display_name']} (@{result['artist']['handle']})")
-        print(f"Audio: {result['audio_url']}")
-        print(f"Duration: {result['duration']}")
-        print(f"Plays: {result['play_count']}")
+    return SunoSongParser().parse_song_url(url)
