@@ -2,18 +2,12 @@ import os
 import requests
 from flask import Flask, send_from_directory, request, jsonify
 from pythonLibraries.rsc import fetch_and_parse_rsc
-from pythonLibraries.suno import (
-    resolve_share_url, 
-    parse_suno_payload, 
-    parse_suno_song_HTML, 
-    run_diagnostics_suite
-)
+from pythonLibraries.suno import resolve_share_url, parse_suno_payload, parse_suno_song_HTML, run_diagnostics_suite
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 
 @app.route("/")
-def serve_index(): 
-    return send_from_directory(app.static_folder, "index.html")
+def serve_index(): return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/diagnostics", methods=["GET"])
 def diagnostics():
@@ -53,3 +47,4 @@ def test_parser_song_html():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=False, host="0.0.0.0", port=port)
+```[cite: 3]
