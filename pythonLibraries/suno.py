@@ -162,12 +162,39 @@ def parsePlaylistRSC(rsc_payload_string):
     try:
         lines = rsc_payload_string.split('\n')
         for line in lines:
-            if '"playlist":' in line or '"tracks":' in line:
+            if '"playlist":' in line:
                 json_start_index = line.find('{')
                 if json_start_index != -1:
                     json_str = line[json_start_index:]
                     parsed_data = json.loads(json_str)
-                    return json.dumps(parsed_data, separators=(',', ':'))
+                    
+                    # Navigate down to the playlist and its clips
+                    playlist = parsed_data.get('playlist', {})
+                    playlist_clips = playlist.get('playlist_clips', [])
+                    
+                    extracted_clips = []
+                    for item in playlist_clips:
+                        clip = item.get('clip', {})
+                        if clip:
+                            extracted_clips.append({
+                                "id": clip.get("id"),
+                                "title": clip.get("title"),
+                                "duration": clip.get("metadata", {}).get("duration"),
+                                "audioUrl": clip.get("audio_url"),
+                                "imageUrl": clip.get("image_url"),
+                                "createdAt": clip.get("created_at"),
+                                "playCount": clip.get("play_count"),
+                                "upvoteCount": clip.get("upvote_count")
+                            })
+                            
+                    return json.dumps({
+                        "playlist_id": playlist.get("id"),
+                        "name": playlist.get("name"),
+                        "description": playlist.get("description"),
+                        "image_url": playlist.get("image_url"),
+                        "clips": extracted_clips
+                    }, separators=(',', ':'))
+                    
         return None
     except Exception as error:
         print(f"Failed to parse playlist RSC payload: {error}")
