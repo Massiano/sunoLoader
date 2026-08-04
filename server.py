@@ -1,101 +1,146 @@
+"""
+Flask Server for Suno Song Parser
+Serves the frontend and handles parsing requests
+"""
+
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_cors import CORS
+from sunoParser import SunoSongParser, parse_suno_song
 import os
-import mimetypes
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
-import urllib.request
-import urllib.error
+import logging
+from typing import List, Dict, Optional
 
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-class FetchHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        parsed = urlparse(self.path)
+app = Flask(__name__, static_folder='static', template_folder='templates')
+CORS(app)  # Enable CORS for all routes
 
-        if parsed.path == "/fetch":
-            self.handle_fetch(parsed)
+# Initialize parser
+parser = SunoSongParser()
+
+@app.route('/')
+def index():
+    """Serve the main page"""
+    return render_template('sunoLoader.html')
+
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    """Serve static files"""
+    return send_from_directory('static', filename)
+
+@app.route('/api/parse', methods=['POST'])
+def parse_song():
+    """
+    Parse a Suno song URL
+    Expected JSON: {"url": "https://suno.com/song/..."}
+    """
+    try:
+        data = request.get_json()
+        if not data or 'url' not in data:
+            return jsonify({
+                'error': 'Missing URL',
+                'message': 'Please provide a "url" field in the request body'
+            }), 400
+        
+        url = data['url'].strip()
+        logger.info(f"Parsing URL: {url}")
+        
+        # Parse the song
+        result = parser.parse_song_url(url)
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'data': result
+            })
         else:
-            self.handle_static(parsed)
+            return jsonify({
+                'error': 'Parse failed',
+                'message': 'Could not parse the song URL. Please check if the URL is valid.'
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error parsing song: {e}")
+        return jsonify({
+            'error': 'Server error',
+            'message': str(e)
+        }), 500
 
-    def handle_fetch(self, parsed):
-        query = parse_qs(parsed.query)
-        target_url = query.get("url", [None])[0]
+@app.route('/api/parse-multiple', methods=['POST'])
+def parse_multiple_songs():
+    """
+    Parse multiple Suno song URLs
+    Expected JSON: {"urls": ["https://suno.com/song/...", ...]}
+    """
+    try:
+        data = request.get_json()
+        if not data or 'urls' not in data:
+            return jsonify({
+                'error': 'Missing URLs',
+                'message': 'Please provide a "urls" field in the request body'
+            }), 400
+        
+        urls = data['urls']
+        if not isinstance(urls, list):
+            return jsonify({
+                'error': 'Invalid URLs',
+                'message': 'URLs must be provided as an array'
+            }), 400
+        
+        logger.info(f"Parsing {len(urls)} URLs")
+        
+        results = []
+        for url in urls:
+            result = parser.parse_song_url(url.strip())
+            if result:
+                results.append(result)
+        
+        return jsonify({
+            'success': True,
+            'data': results,
+            'total': len(results),
+            'requested': len(urls)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error parsing multiple songs: {e}")
+        return jsonify({
+            'error': 'Server error',
+            'message': str(e)
+        }), 500
 
-        if not target_url:
-            self.send_response(400)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(b"Missing 'url' query parameter")
-            return
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'Suno Song Parser API is running'
+    })
 
-        try:
-            req = urllib.request.Request(
-                target_url,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; FetchServer/1.0)"}
-            )
-            with urllib.request.urlopen(req, timeout=10) as response:
-                content_type = response.headers.get("Content-Type", "text/plain")
-                body = response.read()
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'error': 'Not found',
+        'message': 'The requested endpoint does not exist'
+    }), 404
 
-            self.send_response(200)
-            self.send_header("Content-Type", content_type)
-            self.end_headers()
-            self.wfile.write(body)
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        'error': 'Internal server error',
+        'message': 'An unexpected error occurred'
+    }), 500
 
-        except urllib.error.HTTPError as e:
-            self.send_response(e.code)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(f"HTTP Error: {e.code} {e.reason}".encode())
-
-        except urllib.error.URLError as e:
-            self.send_response(502)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(f"URL Error: {e.reason}".encode())
-
-        except Exception as e:
-            self.send_response(500)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(f"Server Error: {str(e)}".encode())
-
-    def handle_static(self, parsed):
-        path = parsed.path
-        if path == "/":
-            path = "/index.html"
-
-        # Prevent path traversal
-        safe_path = os.path.normpath(path).lstrip("/")
-        file_path = os.path.join(STATIC_DIR, safe_path)
-
-        if not file_path.startswith(STATIC_DIR) or not os.path.isfile(file_path):
-            self.send_response(404)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(b"Not found")
-            return
-
-        content_type, _ = mimetypes.guess_type(file_path)
-        content_type = content_type or "application/octet-stream"
-
-        with open(file_path, "rb") as f:
-            body = f.read()
-
-        self.send_response(200)
-        self.send_header("Content-Type", content_type)
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, format, *args):
-        # Keep Railway logs cleaner
-        print(f"{self.address_string()} - {format % args}")
-
-def run():
-    host = "0.0.0.0"
-    port = int(os.environ.get("PORT", 8000))
-    server = HTTPServer((host, port), FetchHandler)
-    print(f"Serving on {host}:{port}")
-    server.serve_forever()
-
-if __name__ == "__main__":
-    run()
+if __name__ == '__main__':
+    # Create required directories
+    os.makedirs('templates', exist_ok=True)
+    os.makedirs('static', exist_ok=True)
+    
+    # Run the server
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=True
+    )
