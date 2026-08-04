@@ -52,11 +52,10 @@ def parse_song_html(html_content: str) -> dict:
     lyrics_container = soup.find(class_=lambda x: x and any(term in x.lower() for term in ["lyrics", "song-content", "body"]))
     if lyrics_container: data["lyrics"] = lyrics_container.get_text(separator="\n", strip=True)
     
-    # Extract full body text context across the entire DOM tree, not just header elements
     body_tag = soup.find("body")
     if body_tag:
         full_text = body_tag.get_text(separator=" ", strip=True)
-        data["body_text_sample"] = full_text[:1000] # Full DOM text preview
+        data["body_text_sample"] = full_text[:1000]
         
     for meta in soup.find_all("meta"):
         name = meta.get("name") or meta.get("property")
@@ -153,5 +152,12 @@ def run_diagnostics_suite() -> dict:
         test_results["playlist_html_parser"] = "PASS" if playlist_parsed["title"] == "Test Playlist" and len(playlist_parsed["tracks"]) == 1 else "FAIL"
     except Exception as e: test_results["playlist_html_parser"] = f"FAIL: {str(e)}"
 
+    try:
+        sample_list_html = "<html><body><ul><li><div class='clip-title-wrapper'><a href='/song/123'>Test</a></div><a href='/@artist'>Author</a><a href='/style/pop'>Pop</a><span><svg></svg>100</span></li></ul></body></html>"
+        list_parsed = parse_suno_song_HTML(sample_list_html)
+        test_results["suno_song_html_parser"] = "PASS" if len(list_parsed) == 1 and list_parsed[0]["song_id"] == "123" else "FAIL"
+    except Exception as e: test_results["suno_song_html_parser"] = f"FAIL: {str(e)}"
+
     overall_status = "healthy" if all(v == "PASS" for v in test_results.values()) else "degraded"
     return {"status": overall_status, "live_tests": test_results}
+```[cite: 4]
